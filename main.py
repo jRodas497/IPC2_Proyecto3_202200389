@@ -1,3 +1,4 @@
+import string
 import re
 from tkinter import filedialog
 import xml.etree.ElementTree as ET
@@ -27,32 +28,14 @@ class ListaEnlazada:
         while actual:
             yield actual.valor
             actual = actual.siguiente
-
-def normalizar_texto(texto):
-    texto = texto.lower()
-    texto = unicodedata.normalize('NFD', texto)
-    texto = texto.encode('ascii', 'ignore').decode('utf-8')
-    return texto
-
-def abrir_archivo():
-    print("Abriendo el cuadro de diálogo para seleccionar un archivo...")
-    ruta = filedialog.askopenfilename(filetypes=[("Archivo XML", "*.xml")])
-    if ruta:
-        print(f"Archivo seleccionado: {ruta}")
-        try:
-            with open(ruta, 'r', encoding='utf-8') as file:
-                txt = file.read()
-                print("Contenido del archivo:")
-                print()
-                print("--------------------------------------------------")
-                print(txt)
-                print("--------------------------------------------------")
-                print()
             
-        except Exception as e:
-            print(f"Error al leer el archivo: {e}")
-            
-        return ruta
+    def contiene(self, valor, key = lambda x:x):
+        actual = self.cabeza
+        while actual:
+            if key(actual.valor) == key(valor):
+                return True
+            actual = actual.siguiente
+        return False
 
 class Mensaje:
     def __init__(self, lugar, fecha, hora, usuario, red_social, contenido):
@@ -62,6 +45,9 @@ class Mensaje:
         self.usuario = usuario
         self.red_social = red_social
         self.contenido = contenido
+        self.positivas = 0
+        self.negativas = 0
+        self.clasificacion = 'neutro'
 
     @staticmethod
     def parsear_mensaje(texto):
@@ -99,55 +85,133 @@ class Mensaje:
         else:
             raise ValueError("Formato de mensaje incorrecto")
 
-class AnalizadorSentimientos:
-    def __init__(self, diccionario_sentimientos, diccionario_empresas):
-        self.diccionario_sentimientos = diccionario_sentimientos
-        self.diccionario_empresas = diccionario_empresas
+    def analizar_sentimientos(self, palabras_positivas, palabras_negativas):
+        tabla_traduccion = str.maketrans('', '', string.punctuation)
+        
+        contenido_normalizado = normalizar_texto(self.contenido).translate(tabla_traduccion)
+        palabras = contenido_normalizado.split()
+        
+        for palabra in palabras:
+            if palabras_positivas.contiene(Palabra(palabra, 'positivo'), key=lambda x: x.texto):
+                self.positivas += 1
+            if palabras_negativas.contiene(Palabra(palabra, 'negativo'), key=lambda x: x.texto):
+                self.negativas += 1
 
-    def analizar_sentimiento(self, mensaje):
-        palabras = mensaje.contenido.split()
-        positivas = sum(1 for palabra in palabras if normalizar_texto(palabra) in self.diccionario_sentimientos['positivas'])
-        negativas = sum(1 for palabra in palabras if normalizar_texto(palabra) in self.diccionario_sentimientos['negativas'])
-
-        if positivas > negativas:
-            return "positivo"
-        elif negativas > positivas:
-            return "negativo"
+        if self.positivas > self.negativas:
+            self.clasificacion = "positivo"
+        elif self.negativas > self.positivas:
+            self.clasificacion = "negativo"
         else:
-            return "neutro"
+            self.clasificacion = "neutro"   
 
-    def asociar_con_empresa(self, mensaje):
-        empresas_mencionadas = ListaEnlazada()
-        for empresa, servicios in self.diccionario_empresas.items():
-            if normalizar_texto(empresa) in normalizar_texto(mensaje.contenido):
-                empresas_mencionadas.agregar(empresa)
-            for servicio in servicios.iterar():
-                if normalizar_texto(servicio) in normalizar_texto(mensaje.contenido):
-                    empresas_mencionadas.agregar(servicio)
-        return empresas_mencionadas
+class Palabra:
+    def __init__(self, texto, tipo):
+        self.texto = texto
+        self.tipo = tipo
 
-class AlmacenamientoXML:
-    def __init__(self, archivo_xml):
-        self.archivo_xml = archivo_xml
-        self.root = ET.Element("lista_respuestas")
+class Servicio:
+    def __init__(self, nombre):
+        self.nombre = nombre
+        self.aliases = ListaEnlazada()
 
-    def almacenar_mensaje(self, mensaje):
-        respuesta_element = ET.SubElement(self.root, "respuesta")
-        ET.SubElement(respuesta_element, "fecha").text = mensaje.fecha.split()[0]
-        ET.SubElement(respuesta_element, "lugar").text = mensaje.lugar
-        ET.SubElement(respuesta_element, "usuario").text = mensaje.usuario
-        ET.SubElement(respuesta_element, "red_social").text = mensaje.red_social
-        ET.SubElement(respuesta_element, "contenido").text = mensaje.contenido
+    def agregar_alias(self, alias):
+        if not self.aliases.contiene(alias):
+            self.aliases.agregar(alias)
+        else:
+            print(f"Alias repetido: {alias}")
 
-    def guardar_xml(self):
-        tree = ET.ElementTree(self.root)
-        tree.write(self.archivo_xml, encoding='utf-8', xml_declaration=True)
+class Empresa:
+    def __init__(self, nombre):
+        self.nombre = nombre
+        self.servicios = ListaEnlazada()
 
-    def mostrar_xml(self):
-        tree = ET.ElementTree(self.root)
-        ET.dump(tree)
+    def agregar_servicio(self, servicio):
+        if not self.servicios.contiene(servicio, key=lambda x: x.nombre):
+            self.servicios.agregar(servicio)
+        else:
+            print(f"El servicio {servicio.nombre} ya existe en la empresa {self.nombre}")
 
-# Funciones auxiliares
+class GestorDatos:
+    def __init__(self):
+        self.mensajes = ListaEnlazada()
+        self.palabras_positivas = ListaEnlazada()
+        self.palabras_negativas = ListaEnlazada()
+        self.empresas = ListaEnlazada()
+
+    def agregar_mensajes(self, archivo):
+        nuevos_mensajes = leer_mensajes(archivo)
+        for mensaje in nuevos_mensajes.iterar():
+            self.mensajes.agregar(mensaje)
+
+    def agregar_palabras(self, archivo):
+        nuevas_palabras = leer_diccionario(archivo)
+        for palabra in nuevas_palabras.iterar():
+            if palabra.tipo == 'positivo':
+                if not self.palabras_positivas.contiene(palabra, key=lambda x: x.texto) and not self.palabras_negativas.contiene(palabra, key=lambda x: x.texto):
+                    self.palabras_positivas.agregar(palabra)
+                else:
+                    print(f"Palabra repetida o en conflicto: {palabra.texto}")
+            elif palabra.tipo == 'negativo':
+                if not self.palabras_negativas.contiene(palabra, key=lambda x: x.texto) and not self.palabras_positivas.contiene(palabra, key=lambda x: x.texto):
+                    self.palabras_negativas.agregar(palabra)
+                else:
+                    print(f"Palabra repetida o en conflicto: {palabra.texto}")
+       
+        print('-' * 50)
+            
+    def agregar_empresas(self, archivo):
+        nuevas_empresas = leer_empresas(archivo)
+        for empresa in nuevas_empresas.iterar():
+            if not self.empresas.contiene(empresa, key=lambda x: x.nombre):
+                self.empresas.agregar(empresa)
+            else:
+                print(f"Empresa repetida: {empresa.nombre}")
+                
+        print('-' * 50)
+
+    def mostrar_mensajes(self):
+        print("Mensajes:")
+        for texto in self.mensajes.iterar():
+            try:
+                mensaje = Mensaje.parsear_mensaje(texto)
+                mensaje.analizar_sentimientos(self.palabras_positivas, self.palabras_negativas)
+                print(f"Lugar: {mensaje.lugar}")
+                print(f"Fecha: {mensaje.fecha}")
+                print(f"Hora: {mensaje.hora}")
+                print(f"Usuario: {mensaje.usuario}")
+                print(f"Red Social: {mensaje.red_social}")
+                print(f"Contenido: {mensaje.contenido}")
+                print(f"Palabras Positivas: {mensaje.positivas}")
+                print(f"Palabras Negativas: {mensaje.negativas}")
+                print(f"Clasificación: {mensaje.clasificacion}")
+                print("------")
+            except ValueError as e:
+                print(f"Error al parsear mensaje: {e}")
+
+    def mostrar_palabras(self):
+        print("\nPalabras del Diccionario:")
+        print('     Positivas:')
+        for palabra in self.palabras_positivas.iterar():
+            print(f"        Palabra: {palabra.texto}")
+        print('     Negativas:')
+        for palabra in self.palabras_negativas.iterar():
+            print(f"        Palabra: {palabra.texto}")
+            
+    def mostrar_empresas(self):
+        print("\nEmpresas y Servicios:")
+        for empresa in self.empresas.iterar():
+            print(f"Empresa: {empresa.nombre}")
+            for servicio in empresa.servicios.iterar():
+                print(f"  Servicio: {servicio.nombre}")
+                for alias in servicio.aliases.iterar():
+                    print(f"    Alias: {alias}")
+
+def normalizar_texto(texto):
+    texto = texto.lower()
+    texto = unicodedata.normalize('NFD', texto)
+    texto = texto.encode('ascii', 'ignore').decode('utf-8')
+    return texto
+
 def leer_mensajes(archivo):
     tree = ET.parse(archivo)
     root = tree.getroot()
@@ -156,43 +220,86 @@ def leer_mensajes(archivo):
         mensajes.agregar(mensaje.text.strip())
     return mensajes
 
-def cargar_diccionarios(archivo):
+def leer_diccionario(archivo):
     tree = ET.parse(archivo)
     root = tree.getroot()
-    diccionario_sentimientos = {
-        'positivas': ListaEnlazada(),
-        'negativas': ListaEnlazada()
-    }
+    palabras = ListaEnlazada()
+    
     for palabra in root.find('diccionario').find('sentimientos_positivos').findall('palabra'):
-        diccionario_sentimientos['positivas'].agregar(normalizar_texto(palabra.text.strip()))
+        palabras.agregar(Palabra(normalizar_texto(palabra.text.strip()), 'positivo'))
+    
     for palabra in root.find('diccionario').find('sentimientos_negativos').findall('palabra'):
-        diccionario_sentimientos['negativas'].agregar(normalizar_texto(palabra.text.strip()))
+        palabras.agregar(Palabra(normalizar_texto(palabra.text.strip()), 'negativo'))
+    
+    return palabras
 
-    diccionario_empresas = {}
-    for empresa in root.find('diccionario').find('empresas_analizar').findall('empresa'):
-        nombre_empresa = normalizar_texto(empresa.find('nombre').text.strip())
-        servicios = ListaEnlazada()
-        for servicio in empresa.find('servicios').findall('servicio'):
-            servicios.agregar(normalizar_texto(servicio.get('nombre').strip()))
-            for alias in servicio.findall('alias'):
-                servicios.agregar(normalizar_texto(alias.text.strip()))
-        diccionario_empresas[nombre_empresa] = servicios
+def leer_empresas(archivo):
+    tree = ET.parse(archivo)
+    root = tree.getroot()
+    empresas = ListaEnlazada()
+    
+    for empresa_elem in root.find('diccionario').find('empresas_analizar').findall('empresa'):
+        nombre_empresa = normalizar_texto(empresa_elem.find('nombre').text.strip())
+        empresa = Empresa(nombre_empresa)
+        
+        for servicio_elem in empresa_elem.find('servicios').findall('servicio'):
+            nombre_servicio = normalizar_texto(servicio_elem.get('nombre').strip())
+            servicio = Servicio(nombre_servicio)
+            
+            for alias_elem in servicio_elem.findall('alias'):
+                alias = normalizar_texto(alias_elem.text.strip())
+                servicio.agregar_alias(alias)
+            
+            empresa.agregar_servicio(servicio)
+        
+        empresas.agregar(empresa)
+    
+    return empresas
 
-    return diccionario_sentimientos, diccionario_empresas
+def abrir_archivo():
+    print("Abriendo el cuadro de diálogo para seleccionar un archivo...")
+    ruta = filedialog.askopenfilename(filetypes=[("Archivo XML", "*.xml")])
+    if ruta:
+        print(f"Archivo seleccionado: {ruta}")
+        try:
+            with open(ruta, 'r', encoding='utf-8') as file:
+                txt = file.read()
+                print("Contenido del archivo:")
+                print()
+                print("--------------------------------------------------")
+                print(txt)
+                print("--------------------------------------------------")
+                print()
+            
+        except Exception as e:
+            print(f"Error al leer el archivo: {e}")
+            
+        return ruta
 
-# Ejemplo de uso
-archivo_entrada = abrir_archivo()
-mensajes = leer_mensajes(archivo_entrada)
+gestor = GestorDatos()
 
-for texto in mensajes.iterar():
-    try:
-        mensaje = Mensaje.parsear_mensaje(texto)
-        print(f"Lugar: {mensaje.lugar}")
-        print(f"Fecha: {mensaje.fecha}")
-        print(f"Hora: {mensaje.hora}")
-        print(f"Usuario: {mensaje.usuario}")
-        print(f"Red Social: {mensaje.red_social}")
-        print(f"Contenido: {mensaje.contenido}")
-        print("------")
-    except ValueError as e:
-        print(f"Error al parsear mensaje: {e}")
+input_usuario = 'si'
+
+while input_usuario == "si":
+    input_usuario = input("¿Desea cargar un archivo XML? (si/no): ").strip().lower()
+    if input_usuario == "si":
+        archivo_entrada = abrir_archivo()
+        if archivo_entrada:
+            gestor.agregar_mensajes(archivo_entrada)
+            gestor.agregar_palabras(archivo_entrada)
+            gestor.agregar_empresas(archivo_entrada)
+
+            gestor.mostrar_mensajes()
+            gestor.mostrar_palabras()
+            gestor.mostrar_empresas()
+        else:
+            print("No se seleccionó ningún archivo.")
+    else:
+        print("No se cargó ningún archivo.")
+# archivo_entrada2 = abrir_archivo()
+# gestor.agregar_mensajes(archivo_entrada2)
+# gestor.agregar_palabras(archivo_entrada2)
+
+# Mostrar datos actualizados
+# gestor.mostrar_mensajes()
+# gestor.mostrar_palabras()
