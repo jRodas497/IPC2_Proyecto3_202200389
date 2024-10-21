@@ -1,3 +1,5 @@
+import os
+from xml.dom.minidom import Document
 import string
 import re
 from tkinter import filedialog
@@ -86,6 +88,9 @@ class Mensaje:
             raise ValueError("Formato de mensaje incorrecto")
 
     def analizar_sentimientos(self, palabras_positivas, palabras_negativas):
+        if self.positivas != 0 or self.negativas != 0:
+            return
+        
         tabla_traduccion = str.maketrans('', '', string.punctuation)
         
         contenido_normalizado = normalizar_texto(self.contenido).translate(tabla_traduccion)
@@ -113,6 +118,10 @@ class Servicio:
     def __init__(self, nombre):
         self.nombre = nombre
         self.aliases = ListaEnlazada()
+        self.total_mensajes = 0
+        self.mensajes_positivos = 0
+        self.mensajes_negativos = 0
+        self.mensajes_neutros = 0
 
     def agregar_alias(self, alias):
         if not self.aliases.contiene(alias):
@@ -120,10 +129,32 @@ class Servicio:
         else:
             print(f"Alias repetido: {alias}")
 
+    def incrementar_conteo(self, clasificacion):
+        self.total_mensajes += 1
+        if clasificacion == "positivo":
+            self.mensajes_positivos += 1
+        elif clasificacion == "negativo":
+            self.mensajes_negativos += 1
+        elif clasificacion == "neutro":
+            self.mensajes_neutros += 1
+            
+    def se_menciona(self, contenido):
+        contenido_normalizado = normalizar_texto(contenido)
+        if self.nombre in contenido_normalizado:
+            return True
+        for alias in self.aliases.iterar():
+            if alias in contenido_normalizado:
+                return True
+        return False
+
 class Empresa:
     def __init__(self, nombre):
         self.nombre = nombre
         self.servicios = ListaEnlazada()
+        self.total_mensajes = 0
+        self.mensajes_positivos = 0
+        self.mensajes_negativos = 0
+        self.mensajes_neutros = 0
 
     def agregar_servicio(self, servicio):
         if not self.servicios.contiene(servicio, key=lambda x: x.nombre):
@@ -131,12 +162,53 @@ class Empresa:
         else:
             print(f"El servicio {servicio.nombre} ya existe en la empresa {self.nombre}")
 
+    def incrementar_conteo(self, clasificacion):
+        self.total_mensajes += 1
+        if clasificacion == "positivo":
+            self.mensajes_positivos += 1
+        elif clasificacion == "negativo":
+            self.mensajes_negativos += 1
+        elif clasificacion == "neutro":
+            self.mensajes_neutros += 1
+
+class FechaMensajes:
+    def __init__(self, fecha):
+        self.fecha = fecha
+        self.mensajes = ListaEnlazada()
+        self.siguiente = None
+
+    def agregar_mensaje(self, mensaje):
+        self.mensajes.agregar(mensaje)
+
+class MensajesPorFecha:
+    def __init__(self):
+        self.cabeza = None
+
+    def agregar_mensaje(self, fecha, mensaje):
+        if not self.cabeza:
+            self.cabeza = FechaMensajes(fecha)
+            self.cabeza.agregar_mensaje(mensaje)
+        else:
+            actual = self.cabeza
+            while actual:
+                if actual.fecha == fecha:
+                    actual.agregar_mensaje(mensaje)
+                    return
+                if not actual.siguiente:
+                    break
+                actual = actual.siguiente
+            nuevo_nodo = FechaMensajes(fecha)
+            nuevo_nodo.agregar_mensaje(mensaje)
+            actual.siguiente = nuevo_nodo
+
 class GestorDatos:
     def __init__(self):
         self.mensajes = ListaEnlazada()
         self.palabras_positivas = ListaEnlazada()
         self.palabras_negativas = ListaEnlazada()
         self.empresas = ListaEnlazada()
+        self.mensajes_por_fecha = MensajesPorFecha()
+
 
     def agregar_mensajes(self, archivo):
         nuevos_mensajes = leer_mensajes(archivo)
@@ -169,24 +241,46 @@ class GestorDatos:
                 
         print('-' * 50)
 
-    def mostrar_mensajes(self):
-        print("Mensajes:")
+    def contar_mensajes_por_empresa(self):
         for texto in self.mensajes.iterar():
-            try:
-                mensaje = Mensaje.parsear_mensaje(texto)
+            mensaje = Mensaje.parsear_mensaje(texto)
+            mensaje.analizar_sentimientos(self.palabras_positivas, self.palabras_negativas)
+            empresas_mencionadas = set()
+            for empresa in self.empresas.iterar():
+                if empresa.nombre in normalizar_texto(mensaje.contenido) and empresa.nombre not in empresas_mencionadas:
+                    empresa.incrementar_conteo(mensaje.clasificacion)
+                    empresas_mencionadas.add(empresa.nombre)
+                for servicio in empresa.servicios.iterar():
+                    if servicio.se_menciona(mensaje.contenido) and servicio.nombre not in empresas_mencionadas:
+                        servicio.incrementar_conteo(mensaje.clasificacion)
+                        empresas_mencionadas.add(servicio.nombre)
+
+    def mostrar_mensajes(self):
+        print("Mensajes agrupados por fecha:")
+        for texto in self.mensajes.iterar():
+            mensaje = Mensaje.parsear_mensaje(texto)
+            self.mensajes_por_fecha.agregar_mensaje(mensaje.fecha, mensaje)
+
+        actual_fecha = self.mensajes_por_fecha.cabeza
+        while actual_fecha:
+            print("*****" * 5 )
+            print(f"Fecha: {actual_fecha.fecha}")
+            print("*****" * 5 )
+            actual_mensaje = actual_fecha.mensajes.cabeza
+            while actual_mensaje:
+                mensaje = actual_mensaje.valor
                 mensaje.analizar_sentimientos(self.palabras_positivas, self.palabras_negativas)
-                print(f"Lugar: {mensaje.lugar}")
-                print(f"Fecha: {mensaje.fecha}")
-                print(f"Hora: {mensaje.hora}")
-                print(f"Usuario: {mensaje.usuario}")
-                print(f"Red Social: {mensaje.red_social}")
-                print(f"Contenido: {mensaje.contenido}")
-                print(f"Palabras Positivas: {mensaje.positivas}")
-                print(f"Palabras Negativas: {mensaje.negativas}")
-                print(f"Clasificación: {mensaje.clasificacion}")
-                print("------")
-            except ValueError as e:
-                print(f"Error al parsear mensaje: {e}")
+                print(f"  Lugar: {mensaje.lugar}")
+                print(f"  Hora: {mensaje.hora}")
+                print(f"  Usuario: {mensaje.usuario}")
+                print(f"  Red Social: {mensaje.red_social}")
+                print(f"  Contenido: {mensaje.contenido}")
+                print(f"  Palabras Positivas: {mensaje.positivas}")
+                print(f"  Palabras Negativas: {mensaje.negativas}")
+                print(f"  Clasificación: {mensaje.clasificacion}")
+                print("  ------")
+                actual_mensaje = actual_mensaje.siguiente
+            actual_fecha = actual_fecha.siguiente
 
     def mostrar_palabras(self):
         print("\nPalabras del Diccionario:")
@@ -205,6 +299,182 @@ class GestorDatos:
                 print(f"  Servicio: {servicio.nombre}")
                 for alias in servicio.aliases.iterar():
                     print(f"    Alias: {alias}")
+
+    def mostrar_resumen(self):
+        self.contar_mensajes_por_empresa()
+        print("\nResumen de Mensajes por Empresa y Servicio:")
+        for empresa in self.empresas.iterar():
+            print('-#' * 25)
+            print(f"Empresa: {empresa.nombre}")
+            print(f"  Total de Mensajes: {empresa.total_mensajes}")
+            print(f"  Mensajes Positivos: {empresa.mensajes_positivos}")
+            print(f"  Mensajes Negativos: {empresa.mensajes_negativos}")
+            print(f"  Mensajes Neutros: {empresa.mensajes_neutros}")
+            for servicio in empresa.servicios.iterar():
+                print("  ------------------------------------")
+                print(f"  Servicio: {servicio.nombre}")
+                print(f"    Total de Mensajes: {servicio.total_mensajes}")
+                print(f"    Mensajes Positivos: {servicio.mensajes_positivos}")
+                print(f"    Mensajes Negativos: {servicio.mensajes_negativos}")
+                print(f"    Mensajes Neutros: {servicio.mensajes_neutros}")
+            print("\n")
+      
+    def mostrar_resumen_detallado(self):
+        self.contar_mensajes_por_empresa()
+        actual_fecha = self.mensajes_por_fecha.cabeza
+        while actual_fecha:
+            print(f"FECHA: {actual_fecha.fecha}")
+            total_mensajes = 0
+            positivos = 0
+            negativos = 0
+            neutros = 0
+            actual_mensaje = actual_fecha.mensajes.cabeza
+            while actual_mensaje:
+                mensaje = actual_mensaje.valor
+                total_mensajes += 1
+                if mensaje.clasificacion == "positivo":
+                    positivos += 1
+                elif mensaje.clasificacion == "negativo":
+                    negativos += 1
+                else:
+                    neutros += 1
+                actual_mensaje = actual_mensaje.siguiente
+
+            print(f"Cantidad total de mensajes recibidos: {total_mensajes}")
+            print(f"Cantidad total de mensajes positivos: {positivos}")
+            print(f"Cantidad total de mensajes negativos: {negativos}")
+            print(f"Cantidad total de mensajes neutros: {neutros}")
+
+            for empresa in self.empresas.iterar():
+                print(f"  Empresa: {empresa.nombre}")
+                print(f"    Número total de mensajes que mencionan a {empresa.nombre}: {empresa.total_mensajes}")
+                print(f"    Mensajes positivos: {empresa.mensajes_positivos}")
+                print(f"    Mensajes negativos: {empresa.mensajes_negativos}")
+                print(f"    Mensajes neutros: {empresa.mensajes_neutros}")
+                for servicio in empresa.servicios.iterar():
+                    print(f"    Servicio: {servicio.nombre}")
+                    print(f"      Número total de mensajes que mencionan al servicio: {servicio.total_mensajes}")
+                    print(f"      Mensajes positivos: {servicio.mensajes_positivos}")
+                    print(f"      Mensajes negativos: {servicio.mensajes_negativos}")
+                    print(f"      Mensajes neutros: {servicio.mensajes_neutros}")
+
+            actual_fecha = actual_fecha.siguiente
+
+    def generar_xml_salida(self, archivo_salida):
+        directorio_actual = os.path.dirname(os.path.abspath(__file__))
+        
+        ruta_uploads = os.path.join(directorio_actual, 'uploads')
+        if not os.path.exists(ruta_uploads):
+            os.makedirs(ruta_uploads)
+
+        archivo_salida = os.path.join(ruta_uploads, archivo_salida)
+
+        doc = Document()
+        root = doc.createElement("lista_respuestas")
+        doc.appendChild(root)
+
+        actual_fecha = self.mensajes_por_fecha.cabeza
+        while actual_fecha:
+            respuesta = doc.createElement("respuesta")
+            root.appendChild(respuesta)
+
+            fecha = doc.createElement("fecha")
+            fecha.appendChild(doc.createTextNode(actual_fecha.fecha))
+            respuesta.appendChild(fecha)
+
+            mensajes = doc.createElement("mensajes")
+            respuesta.appendChild(mensajes)
+
+            total_mensajes = 0
+            positivos = 0
+            negativos = 0
+            neutros = 0
+            actual_mensaje = actual_fecha.mensajes.cabeza
+            while actual_mensaje:
+                mensaje = actual_mensaje.valor
+                total_mensajes += 1
+                if mensaje.clasificacion == "positivo":
+                    positivos += 1
+                elif mensaje.clasificacion == "negativo":
+                    negativos += 1
+                else:
+                    neutros += 1
+                actual_mensaje = actual_mensaje.siguiente
+
+            total_elem = doc.createElement("total")
+            total_elem.appendChild(doc.createTextNode(str(total_mensajes)))
+            mensajes.appendChild(total_elem)
+
+            positivos_elem = doc.createElement("positivos")
+            positivos_elem.appendChild(doc.createTextNode(str(positivos)))
+            mensajes.appendChild(positivos_elem)
+
+            negativos_elem = doc.createElement("negativos")
+            negativos_elem.appendChild(doc.createTextNode(str(negativos)))
+            mensajes.appendChild(negativos_elem)
+
+            neutros_elem = doc.createElement("neutros")
+            neutros_elem.appendChild(doc.createTextNode(str(neutros)))
+            mensajes.appendChild(neutros_elem)
+
+            analisis = doc.createElement("analisis")
+            respuesta.appendChild(analisis)
+
+            for empresa in self.empresas.iterar():
+                empresa_elem = doc.createElement("empresa")
+                empresa_elem.setAttribute("nombre", empresa.nombre)
+                analisis.appendChild(empresa_elem)
+
+                mensajes_empresa = doc.createElement("mensajes")
+                empresa_elem.appendChild(mensajes_empresa)
+
+                total_empresa_elem = doc.createElement("total")
+                total_empresa_elem.appendChild(doc.createTextNode(str(empresa.total_mensajes)))
+                mensajes_empresa.appendChild(total_empresa_elem)
+
+                positivos_empresa_elem = doc.createElement("positivos")
+                positivos_empresa_elem.appendChild(doc.createTextNode(str(empresa.mensajes_positivos)))
+                mensajes_empresa.appendChild(positivos_empresa_elem)
+
+                negativos_empresa_elem = doc.createElement("negativos")
+                negativos_empresa_elem.appendChild(doc.createTextNode(str(empresa.mensajes_negativos)))
+                mensajes_empresa.appendChild(negativos_empresa_elem)
+
+                neutros_empresa_elem = doc.createElement("neutros")
+                neutros_empresa_elem.appendChild(doc.createTextNode(str(empresa.mensajes_neutros)))
+                mensajes_empresa.appendChild(neutros_empresa_elem)
+
+                servicios_elem = doc.createElement("servicios")
+                empresa_elem.appendChild(servicios_elem)
+
+                for servicio in empresa.servicios.iterar():
+                    servicio_elem = doc.createElement("servicio")
+                    servicio_elem.setAttribute("nombre", servicio.nombre)
+                    servicios_elem.appendChild(servicio_elem)
+
+                    mensajes_servicio = doc.createElement("mensajes")
+                    servicio_elem.appendChild(mensajes_servicio)
+
+                    total_servicio_elem = doc.createElement("total")
+                    total_servicio_elem.appendChild(doc.createTextNode(str(servicio.total_mensajes)))
+                    mensajes_servicio.appendChild(total_servicio_elem)
+
+                    positivos_servicio_elem = doc.createElement("positivos")
+                    positivos_servicio_elem.appendChild(doc.createTextNode(str(servicio.mensajes_positivos)))
+                    mensajes_servicio.appendChild(positivos_servicio_elem)
+
+                    negativos_servicio_elem = doc.createElement("negativos")
+                    negativos_servicio_elem.appendChild(doc.createTextNode(str(servicio.mensajes_negativos)))
+                    mensajes_servicio.appendChild(negativos_servicio_elem)
+
+                    neutros_servicio_elem = doc.createElement("neutros")
+                    neutros_servicio_elem.appendChild(doc.createTextNode(str(servicio.mensajes_neutros)))
+                    mensajes_servicio.appendChild(neutros_servicio_elem)
+
+            actual_fecha = actual_fecha.siguiente
+
+        with open(archivo_salida, "w", encoding="utf-8") as f:
+            f.write(doc.toprettyxml(indent="  "))
 
 def normalizar_texto(texto):
     texto = texto.lower()
@@ -292,14 +562,12 @@ while input_usuario == "si":
             gestor.mostrar_mensajes()
             gestor.mostrar_palabras()
             gestor.mostrar_empresas()
+            gestor.mostrar_resumen()
+            gestor.mostrar_resumen_detallado()
+            
+            archivo_salida = input("Ingrese el nombre del archivo de salida: ").strip()
+            gestor.generar_xml_salida(archivo_salida)
         else:
             print("No se seleccionó ningún archivo.")
     else:
         print("No se cargó ningún archivo.")
-# archivo_entrada2 = abrir_archivo()
-# gestor.agregar_mensajes(archivo_entrada2)
-# gestor.agregar_palabras(archivo_entrada2)
-
-# Mostrar datos actualizados
-# gestor.mostrar_mensajes()
-# gestor.mostrar_palabras()

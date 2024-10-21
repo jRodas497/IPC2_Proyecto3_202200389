@@ -37,11 +37,13 @@
         </empresas_analizar>
     </diccionario>
     <lista_mensajes>
+
         <mensaje>
         Lugar y fecha: Guatemala, 01/04/2022 15:01 Usuario:
         map0001@usac.edu Red social: Twitter
         El servicio en la USAC para inscripción fue muy bueno y me siento muy satisfecho.
         </mensaje>
+
         <mensaje>
         Lugar y fecha: Guatemala,
         01/04/2022 15:20 Usuario: map0002@usac.edu Red social: Facebook Hoy me inscribí
@@ -49,11 +51,28 @@
         cola y me indicaron que era la cola incorrecta, esto me enojó mucho y mejor me
         fui.
         </mensaje>
+
         <mensaje>
         Lugar y fecha: Guatemala, 01/04/2022 15:43 Usuario: map0003@usac.edu
         Red social: WhatsApp
         Ya estoy inscrito en la USAC, el proceso fue muy bueno, pero al salir,
         mi carro tenía pinchadas las llantas, esto me preocupó y me fui decepcionado.
         </mensaje>
+
+        <mensaje>
+        Lugar y fecha: Guatemala, 02/06/2022 10:02 Usuario: jordiENP@ingenieria.usac.edu.gt
+        Red social: X
+        Presente problemas para la asignación de cursos en la USAC, el sistema era pesimo y no fue
+        claro, me asignaron una asignatura que no era de mi interés, esto me molestó mucho. Además que
+        tarde mucho tiempo en que el sistema respondiera a mis necesidades
+        </mensaje>
+
+        <mensaje>
+        Lugar y fecha: Guatemala, 02/06/2022 19:59 Usuario: butters@colorado.gt
+        Red social: X
+        Hoy fue mi graduación de la USAC, fue una experiencia excelente, me siento muy satisfecho. Pase momentos de enojo
+        pero al final de mi carrera fue una experiencia excelente.
+        </mensaje>
+        
     </lista_mensajes>
 </solicitud_clasificacion>
