@@ -346,17 +346,52 @@ class GestorDatos:
             print(f"Cantidad total de mensajes neutros: {neutros}")
 
             for empresa in self.empresas.iterar():
+                total_empresa_mensajes = 0
+                total_empresa_positivos = 0
+                total_empresa_negativos = 0
+                total_empresa_neutros = 0
+                actual_mensaje = actual_fecha.mensajes.cabeza
+                while actual_mensaje:
+                    mensaje = actual_mensaje.valor
+                    if empresa.nombre in normalizar_texto(mensaje.contenido):
+                        total_empresa_mensajes += 1
+                        if mensaje.clasificacion == "positivo":
+                            total_empresa_positivos += 1
+                        elif mensaje.clasificacion == "negativo":
+                            total_empresa_negativos += 1
+                        else:
+                            total_empresa_neutros += 1
+                    actual_mensaje = actual_mensaje.siguiente
+
                 print(f"  Empresa: {empresa.nombre}")
-                print(f"    Número total de mensajes que mencionan a {empresa.nombre}: {empresa.total_mensajes}")
-                print(f"    Mensajes positivos: {empresa.mensajes_positivos}")
-                print(f"    Mensajes negativos: {empresa.mensajes_negativos}")
-                print(f"    Mensajes neutros: {empresa.mensajes_neutros}")
+                print(f"    Número total de mensajes que mencionan a Empresa: {total_empresa_mensajes}")
+                print(f"    Mensajes positivos: {total_empresa_positivos}")
+                print(f"    Mensajes negativos: {total_empresa_negativos}")
+                print(f"    Mensajes neutros: {total_empresa_neutros}")
+
                 for servicio in empresa.servicios.iterar():
+                    total_servicio_mensajes = 0
+                    total_servicio_positivos = 0
+                    total_servicio_negativos = 0
+                    total_servicio_neutros = 0
+                    actual_mensaje = actual_fecha.mensajes.cabeza
+                    while actual_mensaje:
+                        mensaje = actual_mensaje.valor
+                        if servicio.se_menciona(mensaje.contenido):
+                            total_servicio_mensajes += 1
+                            if mensaje.clasificacion == "positivo":
+                                total_servicio_positivos += 1
+                            elif mensaje.clasificacion == "negativo":
+                                total_servicio_negativos += 1
+                            else:
+                                total_servicio_neutros += 1
+                        actual_mensaje = actual_mensaje.siguiente
+
                     print(f"    Servicio: {servicio.nombre}")
-                    print(f"      Número total de mensajes que mencionan al servicio: {servicio.total_mensajes}")
-                    print(f"      Mensajes positivos: {servicio.mensajes_positivos}")
-                    print(f"      Mensajes negativos: {servicio.mensajes_negativos}")
-                    print(f"      Mensajes neutros: {servicio.mensajes_neutros}")
+                    print(f"      Número total de mensajes que mencionan al servicio: {total_servicio_mensajes}")
+                    print(f"      Mensajes positivos: {total_servicio_positivos}")
+                    print(f"      Mensajes negativos: {total_servicio_negativos}")
+                    print(f"      Mensajes neutros: {total_servicio_neutros}")
 
             actual_fecha = actual_fecha.siguiente
 
@@ -428,20 +463,37 @@ class GestorDatos:
                 mensajes_empresa = doc.createElement("mensajes")
                 empresa_elem.appendChild(mensajes_empresa)
 
+                total_empresa_mensajes = 0
+                total_empresa_positivos = 0
+                total_empresa_negativos = 0
+                total_empresa_neutros = 0
+                actual_mensaje = actual_fecha.mensajes.cabeza
+                while actual_mensaje:
+                    mensaje = actual_mensaje.valor
+                    if empresa.nombre in normalizar_texto(mensaje.contenido):
+                        total_empresa_mensajes += 1
+                        if mensaje.clasificacion == "positivo":
+                            total_empresa_positivos += 1
+                        elif mensaje.clasificacion == "negativo":
+                            total_empresa_negativos += 1
+                        else:
+                            total_empresa_neutros += 1
+                    actual_mensaje = actual_mensaje.siguiente
+
                 total_empresa_elem = doc.createElement("total")
-                total_empresa_elem.appendChild(doc.createTextNode(str(empresa.total_mensajes)))
+                total_empresa_elem.appendChild(doc.createTextNode(str(total_empresa_mensajes)))
                 mensajes_empresa.appendChild(total_empresa_elem)
 
                 positivos_empresa_elem = doc.createElement("positivos")
-                positivos_empresa_elem.appendChild(doc.createTextNode(str(empresa.mensajes_positivos)))
+                positivos_empresa_elem.appendChild(doc.createTextNode(str(total_empresa_positivos)))
                 mensajes_empresa.appendChild(positivos_empresa_elem)
 
                 negativos_empresa_elem = doc.createElement("negativos")
-                negativos_empresa_elem.appendChild(doc.createTextNode(str(empresa.mensajes_negativos)))
+                negativos_empresa_elem.appendChild(doc.createTextNode(str(total_empresa_negativos)))
                 mensajes_empresa.appendChild(negativos_empresa_elem)
 
                 neutros_empresa_elem = doc.createElement("neutros")
-                neutros_empresa_elem.appendChild(doc.createTextNode(str(empresa.mensajes_neutros)))
+                neutros_empresa_elem.appendChild(doc.createTextNode(str(total_empresa_neutros)))
                 mensajes_empresa.appendChild(neutros_empresa_elem)
 
                 servicios_elem = doc.createElement("servicios")
@@ -455,20 +507,37 @@ class GestorDatos:
                     mensajes_servicio = doc.createElement("mensajes")
                     servicio_elem.appendChild(mensajes_servicio)
 
+                    total_servicio_mensajes = 0
+                    total_servicio_positivos = 0
+                    total_servicio_negativos = 0
+                    total_servicio_neutros = 0
+                    actual_mensaje = actual_fecha.mensajes.cabeza
+                    while actual_mensaje:
+                        mensaje = actual_mensaje.valor
+                        if servicio.se_menciona(mensaje.contenido):
+                            total_servicio_mensajes += 1
+                            if mensaje.clasificacion == "positivo":
+                                total_servicio_positivos += 1
+                            elif mensaje.clasificacion == "negativo":
+                                total_servicio_negativos += 1
+                            else:
+                                total_servicio_neutros += 1
+                        actual_mensaje = actual_mensaje.siguiente
+
                     total_servicio_elem = doc.createElement("total")
-                    total_servicio_elem.appendChild(doc.createTextNode(str(servicio.total_mensajes)))
+                    total_servicio_elem.appendChild(doc.createTextNode(str(total_servicio_mensajes)))
                     mensajes_servicio.appendChild(total_servicio_elem)
 
                     positivos_servicio_elem = doc.createElement("positivos")
-                    positivos_servicio_elem.appendChild(doc.createTextNode(str(servicio.mensajes_positivos)))
+                    positivos_servicio_elem.appendChild(doc.createTextNode(str(total_servicio_positivos)))
                     mensajes_servicio.appendChild(positivos_servicio_elem)
 
                     negativos_servicio_elem = doc.createElement("negativos")
-                    negativos_servicio_elem.appendChild(doc.createTextNode(str(servicio.mensajes_negativos)))
+                    negativos_servicio_elem.appendChild(doc.createTextNode(str(total_servicio_negativos)))
                     mensajes_servicio.appendChild(negativos_servicio_elem)
 
                     neutros_servicio_elem = doc.createElement("neutros")
-                    neutros_servicio_elem.appendChild(doc.createTextNode(str(servicio.mensajes_neutros)))
+                    neutros_servicio_elem.appendChild(doc.createTextNode(str(total_servicio_neutros)))
                     mensajes_servicio.appendChild(neutros_servicio_elem)
 
             actual_fecha = actual_fecha.siguiente
