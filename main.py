@@ -639,7 +639,7 @@ def leer_mensajes(archivo):
             mensaje_texto = mensaje_elem.text.strip()
             mensajes.agregar(mensaje_texto)
     else:
-        for mensaje_elem in root.findall('mensaje'):
+        for mensaje_elem in root.findall('.//mensaje'):
             mensaje_texto = mensaje_elem.text.strip()
             mensajes.agregar(mensaje_texto)
             
