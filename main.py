@@ -720,8 +720,17 @@ while input_usuario == "si":
             gestor.mostrar_resumen()
             gestor.mostrar_resumen_detallado()
             
-            archivo_salida = input("Ingrese el nombre del archivo de salida: ").strip()
-            gestor.generar_xml_salida(archivo_salida)
+            opcion_archivo_salida = input("¿Desde generar un archivo XML de salida?: (si/no)").strip()
+            if opcion_archivo_salida == 'si':
+                archivo_salida = input("Ingrese el nombre del archivo de salida: ").strip()
+                gestor.generar_xml_salida(archivo_salida)
+            
+            opcion_mensaje_prueba = input("¿Desea probar un mensaje? (si/no): ").strip().lower()
+            if opcion_mensaje_prueba == "si":
+                test_mensaje_prueba = abrir_archivo()
+                if test_mensaje_prueba:
+                    gestor.prueba_de_mensaje(test_mensaje_prueba)
+            
         else:
             print("No se seleccionó ningún archivo.")
     else:
