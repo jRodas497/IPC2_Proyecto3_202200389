@@ -1,0 +1,16 @@
+<?xml version="1.0" ?>
+<respuesta>
+  <fecha>01/04/2022</fecha>
+  <red_social>Facebook</red_social>
+  <usuario>map0002@usac.edu</usuario>
+  <empresas>
+    <empresa nombre="usac">
+      <servicio>inscripcion</servicio>
+    </empresa>
+  </empresas>
+  <palabras_positivas>0</palabras_positivas>
+  <palabras_negativas>4</palabras_negativas>
+  <sentimiento_positivo>0.00%</sentimiento_positivo>
+  <sentimiento_negativo>100.00%</sentimiento_negativo>
+  <sentimiento_analizado>negativo</sentimiento_analizado>
+</respuesta>

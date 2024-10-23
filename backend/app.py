@@ -1,11 +1,32 @@
-import os
-from datetime import datetime
-from xml.dom.minidom import Document
-import string
-import re
+#----------------- IMPORTACIONES -------------------
+from flask import Flask, flash, request, redirect, url_for, render_template, session
+from werkzeug.utils import secure_filename
 from tkinter import filedialog
 import xml.etree.ElementTree as ET
+from datetime import datetime
+from xml.dom.minidom import Document
+import os
+import string
+import re
 import unicodedata
+#---------------- GESTOR DE DATOS ------------------  
+
+app = Flask(__name__)
+app.config['UPLOAD_FOLDER'] = 'uploads'
+app.secret_key = 'supersecretkey'
+app.config['ALLOWED_EXTENSIONS'] = {'xml'}
+
+app.template_folder = '../frontend/templates'
+app.static_folder = '../frontend/static'
+
+if not os.path.exists(app.config['UPLOAD_FOLDER']):
+    os.makedirs(app.config['UPLOAD_FOLDER'])
+
+def normalizar_texto(texto):
+    texto = texto.lower()
+    texto = unicodedata.normalize('NFD', texto)
+    texto = texto.encode('ascii', 'ignore').decode('utf-8')
+    return texto
 
 class Nodo:
     def __init__(self, valor):
@@ -625,12 +646,8 @@ class GestorDatos:
         archivo_salida = os.path.join(ruta_uploads, os.path.splitext(os.path.basename(archivo_xml))[0] + "_msjPRUEBA.xml")
         with open(archivo_salida, "w", encoding="utf-8") as f:
             f.write(doc.toprettyxml(indent="  "))
-        
-def normalizar_texto(texto):
-    texto = texto.lower()
-    texto = unicodedata.normalize('NFD', texto)
-    texto = texto.encode('ascii', 'ignore').decode('utf-8')
-    return texto
+
+#---------------- FUNCIONES PYTHON ------------------ 
 
 def leer_mensajes(archivo):
     tree = ET.parse(archivo)
@@ -704,9 +721,23 @@ def abrir_archivo():
             
         return ruta
 
+def abrir_archivo_2():
+    if 'file' not in request.files:
+        return redirect(request.url)
+    file = request.files['file']
+    if file.filename == '':
+        return redirect(request.url)
+    if file and file.filename.endswith('.xml'):
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+        session['filepath'] = filepath
+        return filepath
+    return None
+
 gestor = GestorDatos()
 
-input_usuario = 'si'
+'''input_usuario = 'si'
 
 while input_usuario == "si":
     input_usuario = input("¿Desea cargar un archivo XML? (si/no): ").strip().lower()
@@ -737,3 +768,50 @@ while input_usuario == "si":
             print("No se seleccionó ningún archivo.")
     else:
         print("No se cargó ningún archivo.")
+        '''
+
+#---------------- FUNCIONES FLASK ------------------
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+
+@app.route('/', methods=['GET', 'POST'])
+def index():
+    if request.method == 'POST':
+        filepath = abrir_archivo_2()
+        if filepath:
+            return redirect(url_for('lista_archivos', filepath=filepath))
+    return render_template('index.html')
+
+@app.route('/cargar', methods=['GET', 'POST'])
+def cargar_archivo():
+    if request.method == 'POST':
+        if 'file' not in request.files:
+            flash('No file part')
+            return redirect(request.url)
+        file = request.files['file']
+        if file.filename == '':
+            flash('No selected file')
+            return redirect(request.url)
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(filepath)
+            
+            # Procesar el archivo con GestorDatos
+            gestor = GestorDatos()
+            gestor.agregar_mensajes(filepath)
+            gestor.agregar_palabras(filepath)
+            gestor.agregar_empresas(filepath)
+            gestor.generar_xml_salida(filepath)
+            
+            flash('Archivo cargado y procesado exitosamente')
+            return redirect(url_for('lista_archivos'))
+    return render_template('cargar_archivo.html')
+
+@app.route('/archivos')
+def lista_archivos():
+    archivos = os.listdir(app.config['UPLOAD_FOLDER'])
+    return render_template('lista_archivos.html', archivos=archivos)
+
+if __name__ == '__main__':
+    app.run(debug=True)
