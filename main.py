@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from xml.dom.minidom import Document
 import string
 import re
@@ -394,13 +395,14 @@ class GestorDatos:
 
             actual_fecha = actual_fecha.siguiente
 
-    def generar_xml_salida(self, archivo_salida):
+    def generar_xml_salida(self):
         directorio_actual = os.path.dirname(os.path.abspath(__file__))
-        
         ruta_uploads = os.path.join(directorio_actual, 'uploads')
+        
         if not os.path.exists(ruta_uploads):
             os.makedirs(ruta_uploads)
 
+        archivo_salida = datetime.now().strftime("salida_%Y%m%d_%H%M%S.xml")
         archivo_salida = os.path.join(ruta_uploads, archivo_salida)
 
         doc = Document()
@@ -543,6 +545,7 @@ class GestorDatos:
 
         with open(archivo_salida, "w", encoding="utf-8") as f:
             f.write(doc.toprettyxml(indent="  "))
+        print(f"Archivo XML guardado exitosamente en {archivo_salida}")
 
     def prueba_de_mensaje(self, archivo_xml):
         tree = ET.parse(archivo_xml)
@@ -722,8 +725,7 @@ while input_usuario == "si":
             
             opcion_archivo_salida = input("¿Desde generar un archivo XML de salida?: (si/no)").strip()
             if opcion_archivo_salida == 'si':
-                archivo_salida = input("Ingrese el nombre del archivo de salida: ").strip()
-                gestor.generar_xml_salida(archivo_salida)
+                gestor.generar_xml_salida()
             
             opcion_mensaje_prueba = input("¿Desea probar un mensaje? (si/no): ").strip().lower()
             if opcion_mensaje_prueba == "si":
