@@ -209,7 +209,6 @@ class GestorDatos:
         self.empresas = ListaEnlazada()
         self.mensajes_por_fecha = MensajesPorFecha()
 
-
     def agregar_mensajes(self, archivo):
         nuevos_mensajes = leer_mensajes(archivo)
         for mensaje in nuevos_mensajes.iterar():
@@ -545,6 +544,85 @@ class GestorDatos:
         with open(archivo_salida, "w", encoding="utf-8") as f:
             f.write(doc.toprettyxml(indent="  "))
 
+    def prueba_de_mensaje(self, archivo_xml):
+        tree = ET.parse(archivo_xml)
+        root = tree.getroot()
+
+        if root.tag != 'mensaje' or len(root) != 0:
+            print("El archivo XML no contiene únicamente la etiqueta <mensaje>")
+            return
+
+        mensaje_texto = root.text.strip()
+
+        mensaje = Mensaje.parsear_mensaje(mensaje_texto)
+        mensaje.analizar_sentimientos(self.palabras_positivas, self.palabras_negativas)
+
+        doc = Document()
+        respuesta = doc.createElement("respuesta")
+        doc.appendChild(respuesta)
+
+        fecha = doc.createElement("fecha")
+        fecha.appendChild(doc.createTextNode(mensaje.fecha))
+        respuesta.appendChild(fecha)
+
+        red_social = doc.createElement("red_social")
+        red_social.appendChild(doc.createTextNode(mensaje.red_social))
+        respuesta.appendChild(red_social)
+
+        usuario = doc.createElement("usuario")
+        usuario.appendChild(doc.createTextNode(mensaje.usuario))
+        respuesta.appendChild(usuario)
+
+        empresas_elem = doc.createElement("empresas")
+        respuesta.appendChild(empresas_elem)
+
+        empresas_mencionadas = set()
+        for empresa in self.empresas.iterar():
+            if empresa.nombre in normalizar_texto(mensaje.contenido):
+                empresa_elem = doc.createElement("empresa")
+                empresa_elem.setAttribute("nombre", empresa.nombre)
+                empresas_elem.appendChild(empresa_elem)
+                empresas_mencionadas.add(empresa.nombre)
+
+                for servicio in empresa.servicios.iterar():
+                    if servicio.se_menciona(mensaje.contenido):
+                        servicio_elem = doc.createElement("servicio")
+                        servicio_elem.appendChild(doc.createTextNode(servicio.nombre))
+                        empresa_elem.appendChild(servicio_elem)
+
+        palabras_positivas_elem = doc.createElement("palabras_positivas")
+        palabras_positivas_elem.appendChild(doc.createTextNode(str(mensaje.positivas)))
+        respuesta.appendChild(palabras_positivas_elem)
+
+        palabras_negativas_elem = doc.createElement("palabras_negativas")
+        palabras_negativas_elem.appendChild(doc.createTextNode(str(mensaje.negativas)))
+        respuesta.appendChild(palabras_negativas_elem)
+
+        total_palabras = mensaje.positivas + mensaje.negativas
+        sentimiento_positivo = (mensaje.positivas / total_palabras) * 100 if total_palabras > 0 else 0
+        sentimiento_negativo = (mensaje.negativas / total_palabras) * 100 if total_palabras > 0 else 0
+
+        sentimiento_positivo_elem = doc.createElement("sentimiento_positivo")
+        sentimiento_positivo_elem.appendChild(doc.createTextNode(f"{sentimiento_positivo:.2f}%"))
+        respuesta.appendChild(sentimiento_positivo_elem)
+
+        sentimiento_negativo_elem = doc.createElement("sentimiento_negativo")
+        sentimiento_negativo_elem.appendChild(doc.createTextNode(f"{sentimiento_negativo:.2f}%"))
+        respuesta.appendChild(sentimiento_negativo_elem)
+
+        sentimiento_analizado_elem = doc.createElement("sentimiento_analizado")
+        sentimiento_analizado_elem.appendChild(doc.createTextNode(mensaje.clasificacion))
+        respuesta.appendChild(sentimiento_analizado_elem)
+
+        directorio_actual = os.path.dirname(os.path.abspath(__file__))
+        ruta_uploads = os.path.join(directorio_actual, 'uploads')
+        if not os.path.exists(ruta_uploads):
+            os.makedirs(ruta_uploads)
+
+        archivo_salida = os.path.join(ruta_uploads, os.path.splitext(os.path.basename(archivo_xml))[0] + "_msjPRUEBA.xml")
+        with open(archivo_salida, "w", encoding="utf-8") as f:
+            f.write(doc.toprettyxml(indent="  "))
+        
 def normalizar_texto(texto):
     texto = texto.lower()
     texto = unicodedata.normalize('NFD', texto)
@@ -555,8 +633,16 @@ def leer_mensajes(archivo):
     tree = ET.parse(archivo)
     root = tree.getroot()
     mensajes = ListaEnlazada()
-    for mensaje in root.find('lista_mensajes').findall('mensaje'):
-        mensajes.agregar(mensaje.text.strip())
+    
+    if root.tag == 'lista_mensajes':
+        for mensaje_elem in root.findall('mensaje'):
+            mensaje_texto = mensaje_elem.text.strip()
+            mensajes.agregar(mensaje_texto)
+    else:
+        for mensaje_elem in root.findall('mensaje'):
+            mensaje_texto = mensaje_elem.text.strip()
+            mensajes.agregar(mensaje_texto)
+            
     return mensajes
 
 def leer_diccionario(archivo):
