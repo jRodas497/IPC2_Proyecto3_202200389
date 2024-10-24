@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+
+<header class="header">
+  <nav>
+    <ul>
+      <li><a href="{{ url_for('index') }}">Inicio</a></li>
+      <li><a href="{{ url_for('cargar_archivo') }}">Cargar Archivo</a></li>
+      <li><a href="{{ url_for('lista_archivos') }}">Lista de Archivos</a></li>
+  </ul>          
+  </nav>
+  <a class="btn" href="https://www.instagram.com/rodas._jj/"><button>
+    <img src="https://img.icons8.com/ios/452/instagram-new.png" alt="instagram" style="width: 20px; ">
+    Contacto</button></a>
+</header>
+    {% block content %}{% endblock %}

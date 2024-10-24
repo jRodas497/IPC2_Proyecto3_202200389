@@ -16,8 +16,8 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 app.secret_key = 'supersecretkey'
 app.config['ALLOWED_EXTENSIONS'] = {'xml'}
 
-app.template_folder = '../frontend/templates'
-app.static_folder = '../frontend/static'
+'''app.template_folder = '../frontend/app/templates'
+app.static_folder = '../frontend/app/static'''
 
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
     os.makedirs(app.config['UPLOAD_FOLDER'])
@@ -422,26 +422,21 @@ class GestorDatos:
         
         if not os.path.exists(ruta_uploads):
             os.makedirs(ruta_uploads)
-
-        archivo_salida = datetime.now().strftime("salida_%Y%m%d_%H%M%S.xml")
-        archivo_salida = os.path.join(ruta_uploads, archivo_salida)
-
+        
+        archivo_salida = os.path.join(ruta_uploads, f"archivo_salida.xml")
+        
         doc = Document()
         root = doc.createElement("lista_respuestas")
         doc.appendChild(root)
-
         actual_fecha = self.mensajes_por_fecha.cabeza
         while actual_fecha:
             respuesta = doc.createElement("respuesta")
             root.appendChild(respuesta)
-
             fecha = doc.createElement("fecha")
             fecha.appendChild(doc.createTextNode(actual_fecha.fecha))
             respuesta.appendChild(fecha)
-
             mensajes = doc.createElement("mensajes")
             respuesta.appendChild(mensajes)
-
             total_mensajes = 0
             positivos = 0
             negativos = 0
@@ -485,37 +480,20 @@ class GestorDatos:
                 mensajes_empresa = doc.createElement("mensajes")
                 empresa_elem.appendChild(mensajes_empresa)
 
-                total_empresa_mensajes = 0
-                total_empresa_positivos = 0
-                total_empresa_negativos = 0
-                total_empresa_neutros = 0
-                actual_mensaje = actual_fecha.mensajes.cabeza
-                while actual_mensaje:
-                    mensaje = actual_mensaje.valor
-                    if empresa.nombre in normalizar_texto(mensaje.contenido):
-                        total_empresa_mensajes += 1
-                        if mensaje.clasificacion == "positivo":
-                            total_empresa_positivos += 1
-                        elif mensaje.clasificacion == "negativo":
-                            total_empresa_negativos += 1
-                        else:
-                            total_empresa_neutros += 1
-                    actual_mensaje = actual_mensaje.siguiente
-
                 total_empresa_elem = doc.createElement("total")
-                total_empresa_elem.appendChild(doc.createTextNode(str(total_empresa_mensajes)))
+                total_empresa_elem.appendChild(doc.createTextNode(str(empresa.total_mensajes)))
                 mensajes_empresa.appendChild(total_empresa_elem)
 
                 positivos_empresa_elem = doc.createElement("positivos")
-                positivos_empresa_elem.appendChild(doc.createTextNode(str(total_empresa_positivos)))
+                positivos_empresa_elem.appendChild(doc.createTextNode(str(empresa.mensajes_positivos)))
                 mensajes_empresa.appendChild(positivos_empresa_elem)
 
                 negativos_empresa_elem = doc.createElement("negativos")
-                negativos_empresa_elem.appendChild(doc.createTextNode(str(total_empresa_negativos)))
+                negativos_empresa_elem.appendChild(doc.createTextNode(str(empresa.mensajes_negativos)))
                 mensajes_empresa.appendChild(negativos_empresa_elem)
 
                 neutros_empresa_elem = doc.createElement("neutros")
-                neutros_empresa_elem.appendChild(doc.createTextNode(str(total_empresa_neutros)))
+                neutros_empresa_elem.appendChild(doc.createTextNode(str(empresa.mensajes_neutros)))
                 mensajes_empresa.appendChild(neutros_empresa_elem)
 
                 servicios_elem = doc.createElement("servicios")
@@ -529,37 +507,20 @@ class GestorDatos:
                     mensajes_servicio = doc.createElement("mensajes")
                     servicio_elem.appendChild(mensajes_servicio)
 
-                    total_servicio_mensajes = 0
-                    total_servicio_positivos = 0
-                    total_servicio_negativos = 0
-                    total_servicio_neutros = 0
-                    actual_mensaje = actual_fecha.mensajes.cabeza
-                    while actual_mensaje:
-                        mensaje = actual_mensaje.valor
-                        if servicio.se_menciona(mensaje.contenido):
-                            total_servicio_mensajes += 1
-                            if mensaje.clasificacion == "positivo":
-                                total_servicio_positivos += 1
-                            elif mensaje.clasificacion == "negativo":
-                                total_servicio_negativos += 1
-                            else:
-                                total_servicio_neutros += 1
-                        actual_mensaje = actual_mensaje.siguiente
-
                     total_servicio_elem = doc.createElement("total")
-                    total_servicio_elem.appendChild(doc.createTextNode(str(total_servicio_mensajes)))
+                    total_servicio_elem.appendChild(doc.createTextNode(str(servicio.total_mensajes)))
                     mensajes_servicio.appendChild(total_servicio_elem)
 
                     positivos_servicio_elem = doc.createElement("positivos")
-                    positivos_servicio_elem.appendChild(doc.createTextNode(str(total_servicio_positivos)))
+                    positivos_servicio_elem.appendChild(doc.createTextNode(str(servicio.mensajes_positivos)))
                     mensajes_servicio.appendChild(positivos_servicio_elem)
 
                     negativos_servicio_elem = doc.createElement("negativos")
-                    negativos_servicio_elem.appendChild(doc.createTextNode(str(total_servicio_negativos)))
+                    negativos_servicio_elem.appendChild(doc.createTextNode(str(servicio.mensajes_negativos)))
                     mensajes_servicio.appendChild(negativos_servicio_elem)
 
                     neutros_servicio_elem = doc.createElement("neutros")
-                    neutros_servicio_elem.appendChild(doc.createTextNode(str(total_servicio_neutros)))
+                    neutros_servicio_elem.appendChild(doc.createTextNode(str(servicio.mensajes_neutros)))
                     mensajes_servicio.appendChild(neutros_servicio_elem)
 
             actual_fecha = actual_fecha.siguiente
@@ -722,23 +683,18 @@ def abrir_archivo():
         return ruta
 
 def abrir_archivo_2():
-    if 'file' not in request.files:
-        return redirect(request.url)
-    file = request.files['file']
-    if file.filename == '':
-        return redirect(request.url)
-    if file and file.filename.endswith('.xml'):
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
-        session['filepath'] = filepath
-        return filepath
-    return None
+    directorio_actual = os.path.dirname(os.path.abspath(__file__))
+    ruta_uploads = os.path.join(directorio_actual, 'uploads')
+    
+    if not os.path.exists(ruta_uploads):
+        os.makedirs(ruta_uploads)
+    
+    return ruta_uploads
 
-gestor = GestorDatos()
+
 
 '''input_usuario = 'si'
-
+gestor = GestorDatos()
 while input_usuario == "si":
     input_usuario = input("¿Desea cargar un archivo XML? (si/no): ").strip().lower()
     if input_usuario == "si":
@@ -767,51 +723,76 @@ while input_usuario == "si":
         else:
             print("No se seleccionó ningún archivo.")
     else:
-        print("No se cargó ningún archivo.")
-        '''
-
+        print("No se cargó ningún archivo.")'''
+        
 #---------------- FUNCIONES FLASK ------------------
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
-@app.route('/', methods=['GET', 'POST'])
+@app.route('/')
 def index():
-    if request.method == 'POST':
-        filepath = abrir_archivo_2()
-        if filepath:
-            return redirect(url_for('lista_archivos', filepath=filepath))
-    return render_template('index.html')
+    return render_template('index.html', archivo_original='', archivo_resultante='')
 
-@app.route('/cargar', methods=['GET', 'POST'])
+@app.route('/cargar', methods=['POST'])
 def cargar_archivo():
-    if request.method == 'POST':
-        if 'file' not in request.files:
-            flash('No file part')
-            return redirect(request.url)
-        file = request.files['file']
-        if file.filename == '':
-            flash('No selected file')
-            return redirect(request.url)
-        if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(filepath)
-            
-            # Procesar el archivo con GestorDatos
-            gestor = GestorDatos()
-            gestor.agregar_mensajes(filepath)
-            gestor.agregar_palabras(filepath)
-            gestor.agregar_empresas(filepath)
-            gestor.generar_xml_salida(filepath)
-            
-            flash('Archivo cargado y procesado exitosamente')
-            return redirect(url_for('lista_archivos'))
-    return render_template('cargar_archivo.html')
+    if 'file' not in request.files:
+        flash('No file part')
+        return redirect(url_for('index'))
+    file = request.files['file']
+    if file.filename == '':
+        flash('No selected file')
+        return redirect(url_for('index'))
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+        
+        with open(filepath, 'r', encoding='utf-8') as f:
+            archivo_original = f.read()
+        
+        gestor = GestorDatos()
+        gestor.agregar_mensajes(filepath)
+        gestor.agregar_palabras(filepath)
+        gestor.agregar_empresas(filepath)
+        nombre_archivo_resultante = f"archivo_salida.xml"
+        gestor.generar_xml_salida()
+        
+        ruta_archivo_resultante = os.path.join(app.config['UPLOAD_FOLDER'], nombre_archivo_resultante)
+        if not os.path.exists(ruta_archivo_resultante):
+            flash('El archivo resultante no se generó correctamente')
+            return redirect(url_for('index'))
+        with open(ruta_archivo_resultante, 'r', encoding='utf-8') as f:
+            archivo_resultante = f.read()
+        
+        return render_template('index.html', archivo_original=archivo_original, archivo_resultante=archivo_resultante)
+    else:
+        flash('Archivo no permitido')
+        return redirect(url_for('index'))
 
-@app.route('/archivos')
-def lista_archivos():
-    archivos = os.listdir(app.config['UPLOAD_FOLDER'])
-    return render_template('lista_archivos.html', archivos=archivos)
+@app.route('/procesar_xml')
+def procesar_xml():
+    gestor = GestorDatos()
+    # Lógica para procesar el XML
+    flash('Procesamiento del XML completado')
+    return redirect(url_for('index'))
+
+@app.route('/limpiar_datos')
+def limpiar_datos():
+    gestor = GestorDatos()
+    gestor.limpiar_datos()
+    flash('Datos limpiados correctamente')
+    return redirect(url_for('index'))
+
+@app.route('/lista')
+def vista_auxiliar():
+    # Lógica para la vista auxiliar
+    return render_template('lista.html')
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+
+if __name__ == '__main__':
+    app.run(debug=True)
 
 if __name__ == '__main__':
     app.run(debug=True)
