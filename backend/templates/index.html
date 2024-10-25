@@ -32,10 +32,16 @@
         </div>
         <nav>
            <ul class="nav-links">
-                <li><a href="#">Peticiones</a></li>
-                <li><a href="#">Ayuda</a></li>
                 <li><a onclick="limpiarTextareas()">Limpiar Textareas</a></li>
-                <li><a onclick="location.href='{{ url_for('limpiar_datos') }}'">Limpiar Dato</a></li>
+                <li><a onclick="location.href='{{ url_for('limpiar_datos') }}'">Limpiar Datos (Reset)</a></li>
+                <li><a href="#">Peticiones</a></li>
+                <li class="dropdown">
+                    <a class="dropbtn">Ayuda ▾</a>
+                    <div class="dropdown-content">
+                        <a href="#">Documentación</a>
+                        <a href="#">Acerca de...</a>
+                    </div>
+                </li>
            </ul>            
         </nav>
         <a class="btn" href="#"><button>a</button></a>

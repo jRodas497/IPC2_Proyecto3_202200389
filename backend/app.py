@@ -231,6 +231,13 @@ class GestorDatos:
         self.empresas = ListaEnlazada()
         self.mensajes_por_fecha = MensajesPorFecha()
 
+    def limpiar_datos(self):
+        self.mensajes = ListaEnlazada()
+        self.palabras_positivas = ListaEnlazada()
+        self.palabras_negativas = ListaEnlazada()
+        self.empresas = ListaEnlazada()
+        self.mensajes_por_fecha = MensajesPorFecha()
+    
     def agregar_mensajes(self, contenido_archivo):
         nuevos_mensajes = leer_mensajes(contenido_archivo)
         for mensaje in nuevos_mensajes.iterar():
@@ -480,20 +487,31 @@ class GestorDatos:
                 mensajes_empresa = doc.createElement("mensajes")
                 empresa_elem.appendChild(mensajes_empresa)
 
+                total_empresa = 0
+                positivos_empresa = 0
+                negativos_empresa = 0
+                neutros_empresa = 0
+
+                for servicio in empresa.servicios.iterar():
+                    total_empresa += servicio.total_mensajes
+                    positivos_empresa += servicio.mensajes_positivos
+                    negativos_empresa += servicio.mensajes_negativos
+                    neutros_empresa += servicio.mensajes_neutros
+
                 total_empresa_elem = doc.createElement("total")
-                total_empresa_elem.appendChild(doc.createTextNode(str(empresa.total_mensajes)))
+                total_empresa_elem.appendChild(doc.createTextNode(str(total_empresa)))
                 mensajes_empresa.appendChild(total_empresa_elem)
 
                 positivos_empresa_elem = doc.createElement("positivos")
-                positivos_empresa_elem.appendChild(doc.createTextNode(str(empresa.mensajes_positivos)))
+                positivos_empresa_elem.appendChild(doc.createTextNode(str(positivos_empresa)))
                 mensajes_empresa.appendChild(positivos_empresa_elem)
 
                 negativos_empresa_elem = doc.createElement("negativos")
-                negativos_empresa_elem.appendChild(doc.createTextNode(str(empresa.mensajes_negativos)))
+                negativos_empresa_elem.appendChild(doc.createTextNode(str(negativos_empresa)))
                 mensajes_empresa.appendChild(negativos_empresa_elem)
 
                 neutros_empresa_elem = doc.createElement("neutros")
-                neutros_empresa_elem.appendChild(doc.createTextNode(str(empresa.mensajes_neutros)))
+                neutros_empresa_elem.appendChild(doc.createTextNode(str(neutros_empresa)))
                 mensajes_empresa.appendChild(neutros_empresa_elem)
 
                 servicios_elem = doc.createElement("servicios")
@@ -690,6 +708,8 @@ def abrir_archivo_2():
     
     return abrir_archivo()
 
+gestor = GestorDatos()
+
 '''input_usuario = 'si'
 gestor = GestorDatos()
 while input_usuario == "si":
@@ -747,7 +767,6 @@ def cargar_archivo():
         with open(filepath, 'r', encoding='utf-8') as f:
             contenido_archivo = f.read()
         
-        gestor = GestorDatos()
         gestor.agregar_mensajes(contenido_archivo)
         gestor.agregar_palabras(contenido_archivo)
         gestor.agregar_empresas(contenido_archivo)
@@ -755,7 +774,6 @@ def cargar_archivo():
         gestor.mostrar_mensajes()
         gestor.mostrar_palabras()
         gestor.mostrar_empresas()
-        gestor.mostrar_resumen()
         gestor.mostrar_resumen_detallado()
         
         gestor.generar_xml_salida()
@@ -774,15 +792,16 @@ def cargar_archivo():
 
 @app.route('/procesar_xml')
 def procesar_xml():
-    gestor = GestorDatos()
-    
     flash('Procesamiento del XML completado')
     return redirect(url_for('index'))
 
 @app.route('/limpiar_datos')
 def limpiar_datos():
-    gestor = GestorDatos()
-    
+    gestor.limpiar_datos()    
+    gestor.mostrar_mensajes()
+    gestor.mostrar_palabras()
+    gestor.mostrar_empresas()
+    gestor.mostrar_resumen_detallado()
     flash('Datos limpiados correctamente')
     return redirect(url_for('index'))
 

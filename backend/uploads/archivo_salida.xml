@@ -3,29 +3,55 @@
   <respuesta>
     <fecha>01/04/2022</fecha>
     <mensajes>
-      <total>2</total>
-      <positivos>1</positivos>
-      <negativos>1</negativos>
-      <neutros>0</neutros>
+      <total>17</total>
+      <positivos>6</positivos>
+      <negativos>6</negativos>
+      <neutros>5</neutros>
     </mensajes>
     <analisis>
       <empresa nombre="usac">
         <mensajes>
-          <total>6</total>
-          <positivos>2</positivos>
-          <negativos>2</negativos>
-          <neutros>2</neutros>
+          <total>28</total>
+          <positivos>11</positivos>
+          <negativos>11</negativos>
+          <neutros>6</neutros>
         </mensajes>
         <servicios>
           <servicio nombre="inscripcion">
             <mensajes>
-              <total>6</total>
-              <positivos>2</positivos>
-              <negativos>2</negativos>
-              <neutros>2</neutros>
+              <total>18</total>
+              <positivos>6</positivos>
+              <negativos>6</negativos>
+              <neutros>6</neutros>
             </mensajes>
           </servicio>
           <servicio nombre="asignacion">
+            <mensajes>
+              <total>5</total>
+              <positivos>0</positivos>
+              <negativos>5</negativos>
+              <neutros>0</neutros>
+            </mensajes>
+          </servicio>
+          <servicio nombre="graduacion">
+            <mensajes>
+              <total>5</total>
+              <positivos>5</positivos>
+              <negativos>0</negativos>
+              <neutros>0</neutros>
+            </mensajes>
+          </servicio>
+        </servicios>
+      </empresa>
+      <empresa nombre="tigo">
+        <mensajes>
+          <total>0</total>
+          <positivos>0</positivos>
+          <negativos>0</negativos>
+          <neutros>0</neutros>
+        </mensajes>
+        <servicios>
+          <servicio nombre="cobrar">
             <mensajes>
               <total>0</total>
               <positivos>0</positivos>
@@ -33,10 +59,63 @@
               <neutros>0</neutros>
             </mensajes>
           </servicio>
-          <servicio nombre="graduacion">
+          <servicio nombre="instalacion">
             <mensajes>
               <total>0</total>
               <positivos>0</positivos>
+              <negativos>0</negativos>
+              <neutros>0</neutros>
+            </mensajes>
+          </servicio>
+          <servicio nombre="arreglar">
+            <mensajes>
+              <total>0</total>
+              <positivos>0</positivos>
+              <negativos>0</negativos>
+              <neutros>0</neutros>
+            </mensajes>
+          </servicio>
+        </servicios>
+      </empresa>
+    </analisis>
+  </respuesta>
+  <respuesta>
+    <fecha>02/06/2022</fecha>
+    <mensajes>
+      <total>10</total>
+      <positivos>5</positivos>
+      <negativos>5</negativos>
+      <neutros>0</neutros>
+    </mensajes>
+    <analisis>
+      <empresa nombre="usac">
+        <mensajes>
+          <total>28</total>
+          <positivos>11</positivos>
+          <negativos>11</negativos>
+          <neutros>6</neutros>
+        </mensajes>
+        <servicios>
+          <servicio nombre="inscripcion">
+            <mensajes>
+              <total>18</total>
+              <positivos>6</positivos>
+              <negativos>6</negativos>
+              <neutros>6</neutros>
+            </mensajes>
+          </servicio>
+          <servicio nombre="asignacion">
+            <mensajes>
+              <total>5</total>
+              <positivos>0</positivos>
+              <negativos>5</negativos>
+              <neutros>0</neutros>
+            </mensajes>
+          </servicio>
+          <servicio nombre="graduacion">
+            <mensajes>
+              <total>5</total>
+              <positivos>5</positivos>
               <negativos>0</negativos>
               <neutros>0</neutros>
             </mensajes>
@@ -90,32 +169,32 @@
     <analisis>
       <empresa nombre="usac">
         <mensajes>
-          <total>6</total>
-          <positivos>2</positivos>
-          <negativos>2</negativos>
-          <neutros>2</neutros>
+          <total>28</total>
+          <positivos>11</positivos>
+          <negativos>11</negativos>
+          <neutros>6</neutros>
         </mensajes>
         <servicios>
           <servicio nombre="inscripcion">
             <mensajes>
-              <total>6</total>
-              <positivos>2</positivos>
-              <negativos>2</negativos>
-              <neutros>2</neutros>
+              <total>18</total>
+              <positivos>6</positivos>
+              <negativos>6</negativos>
+              <neutros>6</neutros>
             </mensajes>
           </servicio>
           <servicio nombre="asignacion">
             <mensajes>
-              <total>0</total>
+              <total>5</total>
               <positivos>0</positivos>
-              <negativos>0</negativos>
+              <negativos>5</negativos>
               <neutros>0</neutros>
             </mensajes>
           </servicio>
           <servicio nombre="graduacion">
             <mensajes>
-              <total>0</total>
-              <positivos>0</positivos>
+              <total>5</total>
+              <positivos>5</positivos>
               <negativos>0</negativos>
               <neutros>0</neutros>
             </mensajes>
