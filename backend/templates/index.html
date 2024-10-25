@@ -1,7 +1,10 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Procesar Archivos XML</title>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Procesamiento de XML</title>
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='index.css') }}">
     <script>
         function mostrarContenidoArchivo(event) {
@@ -10,38 +13,49 @@
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     document.getElementById('archivo_original').value = e.target.result;
+                    document.getElementById('archivo_resultante').value = '';
                 };
                 reader.readAsText(file);
             }
         }
+
+        function limpiarTextareas() {
+            document.getElementById('archivo_original').value = '';
+            document.getElementById('archivo_resultante').value = '';
+        }
     </script>
 </head>
 <body>
-    <nav>
-        <ul>
-            <li><a href="{{ url_for('index') }}">Seleccionar Archivo XML</a></li>
-            <li><a href="{{ url_for('vista_auxiliar') }}">Vista Auxiliar</a></li>
-            <li><a href="https://link-de-ayuda.com">Ayuda</a></li>
-        </ul>
-    </nav>
-    <h1>Procesar Archivos XML</h1>
-    <form method="post" enctype="multipart/form-data" action="{{ url_for('cargar_archivo') }}">
-        <div style="display: flex;">
-            <div style="flex: 1; margin-right: 10px;">
-                <h2>Archivo Original</h2>
-                <textarea id="archivo_original" name="archivo_original" rows="20" cols="50">{{ archivo_original }}</textarea>
-            </div>
-            <div style="flex: 1; margin-left: 10px;">
-                <h2>Archivo Resultante</h2>
-                <textarea id="archivo_resultante" name="archivo_resultante" rows="20" cols="50">{{ archivo_resultante }}</textarea>
-            </div>
+    <header class="header">
+        <div class="logo">
+            
         </div>
-        <input type="file" name="file" onchange="mostrarContenidoArchivo(event)">
-        <button type="submit">Cargar</button>
-    </form>
-    <div class="button-container">
-        <button onclick="location.href='{{ url_for('procesar_xml') }}'" class="button buttonBlue">Comenzar Procesamiento</button>
-        <button onclick="location.href='{{ url_for('limpiar_datos') }}'" class="button buttonBlue">Limpiar Datos</button>
+        <nav>
+           <ul class="nav-links">
+                <li><a href="#">Peticiones</a></li>
+                <li><a href="#">Ayuda</a></li>
+                <li><a onclick="limpiarTextareas()">Limpiar Textareas</a></li>
+                <li><a onclick="location.href='{{ url_for('limpiar_datos') }}'">Limpiar Dato</a></li>
+           </ul>            
+        </nav>
+        <a class="btn" href="#"><button>a</button></a>
+    </header>
+
+    <div class="form-container">
+        <form class="centered-form" method="post" enctype="multipart/form-data" action="{{ url_for('cargar_archivo') }}">
+            <div style="display: flex;">
+                <div style="flex: 1; margin-right: 10px;">
+                    <h2>Archivo Original</h2>
+                    <textarea id="archivo_original" name="archivo_original" rows="20" cols="50">{{ archivo_original }}</textarea>
+                </div>
+                <div style="flex: 1; margin-left: 10px;">
+                    <h2>Archivo Resultante</h2>
+                    <textarea id="archivo_resultante" name="archivo_resultante" rows="20" cols="50">{{ archivo_resultante }}</textarea>
+                </div>
+            </div>
+            <input type="file" name="file" onchange="mostrarContenidoArchivo(event)">
+            <button type="submit">Cargar</button>
+        </form>
     </div>
 </body>
 </html>

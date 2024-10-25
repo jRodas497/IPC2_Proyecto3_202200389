@@ -231,13 +231,13 @@ class GestorDatos:
         self.empresas = ListaEnlazada()
         self.mensajes_por_fecha = MensajesPorFecha()
 
-    def agregar_mensajes(self, archivo):
-        nuevos_mensajes = leer_mensajes(archivo)
+    def agregar_mensajes(self, contenido_archivo):
+        nuevos_mensajes = leer_mensajes(contenido_archivo)
         for mensaje in nuevos_mensajes.iterar():
             self.mensajes.agregar(mensaje)
 
-    def agregar_palabras(self, archivo):
-        nuevas_palabras = leer_diccionario(archivo)
+    def agregar_palabras(self, contenido_archivo):
+        nuevas_palabras = leer_diccionario(contenido_archivo)
         for palabra in nuevas_palabras.iterar():
             if palabra.tipo == 'positivo':
                 if not self.palabras_positivas.contiene(palabra, key=lambda x: x.texto) and not self.palabras_negativas.contiene(palabra, key=lambda x: x.texto):
@@ -252,8 +252,8 @@ class GestorDatos:
        
         print('-' * 50)
             
-    def agregar_empresas(self, archivo):
-        nuevas_empresas = leer_empresas(archivo)
+    def agregar_empresas(self, contenido_archivo):
+        nuevas_empresas = leer_empresas(contenido_archivo)
         for empresa in nuevas_empresas.iterar():
             if not self.empresas.contiene(empresa, key=lambda x: x.nombre):
                 self.empresas.agregar(empresa)
@@ -423,7 +423,7 @@ class GestorDatos:
         if not os.path.exists(ruta_uploads):
             os.makedirs(ruta_uploads)
         
-        archivo_salida = os.path.join(ruta_uploads, f"archivo_salida.xml")
+        archivo_salida = os.path.join(ruta_uploads, "archivo_salida.xml")
         
         doc = Document()
         root = doc.createElement("lista_respuestas")
@@ -529,9 +529,8 @@ class GestorDatos:
             f.write(doc.toprettyxml(indent="  "))
         print(f"Archivo XML guardado exitosamente en {archivo_salida}")
 
-    def prueba_de_mensaje(self, archivo_xml):
-        tree = ET.parse(archivo_xml)
-        root = tree.getroot()
+    def prueba_de_mensaje(self, contenido_archivo, ruta):
+        root = ET.fromstring(contenido_archivo)
 
         if root.tag != 'mensaje' or len(root) != 0:
             print("El archivo XML no contiene únicamente la etiqueta <mensaje>")
@@ -604,15 +603,14 @@ class GestorDatos:
         if not os.path.exists(ruta_uploads):
             os.makedirs(ruta_uploads)
 
-        archivo_salida = os.path.join(ruta_uploads, os.path.splitext(os.path.basename(archivo_xml))[0] + "_msjPRUEBA.xml")
+        archivo_salida = os.path.join(ruta_uploads, os.path.splitext(os.path.basename(ruta))[0] + "_msjPRUEBA.xml")
         with open(archivo_salida, "w", encoding="utf-8") as f:
             f.write(doc.toprettyxml(indent="  "))
 
 #---------------- FUNCIONES PYTHON ------------------ 
 
-def leer_mensajes(archivo):
-    tree = ET.parse(archivo)
-    root = tree.getroot()
+def leer_mensajes(contenido_archivo):
+    root = ET.fromstring(contenido_archivo)
     mensajes = ListaEnlazada()
     
     if root.tag == 'lista_mensajes':
@@ -626,9 +624,8 @@ def leer_mensajes(archivo):
             
     return mensajes
 
-def leer_diccionario(archivo):
-    tree = ET.parse(archivo)
-    root = tree.getroot()
+def leer_diccionario(contenido_archivo):
+    root = ET.fromstring(contenido_archivo)
     palabras = ListaEnlazada()
     
     for palabra in root.find('diccionario').find('sentimientos_positivos').findall('palabra'):
@@ -639,9 +636,8 @@ def leer_diccionario(archivo):
     
     return palabras
 
-def leer_empresas(archivo):
-    tree = ET.parse(archivo)
-    root = tree.getroot()
+def leer_empresas(contenido_archivo):
+    root = ET.fromstring(contenido_archivo)
     empresas = ListaEnlazada()
     
     for empresa_elem in root.find('diccionario').find('empresas_analizar').findall('empresa'):
@@ -676,11 +672,14 @@ def abrir_archivo():
                 print(txt)
                 print("--------------------------------------------------")
                 print()
+                return txt, ruta
             
         except Exception as e:
             print(f"Error al leer el archivo: {e}")
-            
-        return ruta
+            return None
+    else:
+        print('No se seleccionó ningún archivo.')
+        return None
 
 def abrir_archivo_2():
     directorio_actual = os.path.dirname(os.path.abspath(__file__))
@@ -689,16 +688,14 @@ def abrir_archivo_2():
     if not os.path.exists(ruta_uploads):
         os.makedirs(ruta_uploads)
     
-    return ruta_uploads
-
-
+    return abrir_archivo()
 
 '''input_usuario = 'si'
 gestor = GestorDatos()
 while input_usuario == "si":
     input_usuario = input("¿Desea cargar un archivo XML? (si/no): ").strip().lower()
     if input_usuario == "si":
-        archivo_entrada = abrir_archivo()
+        archivo_entrada, ruta = abrir_archivo()
         if archivo_entrada:
             gestor.agregar_mensajes(archivo_entrada)
             gestor.agregar_palabras(archivo_entrada)
@@ -716,22 +713,22 @@ while input_usuario == "si":
             
             opcion_mensaje_prueba = input("¿Desea probar un mensaje? (si/no): ").strip().lower()
             if opcion_mensaje_prueba == "si":
-                test_mensaje_prueba = abrir_archivo()
-                if test_mensaje_prueba:
-                    gestor.prueba_de_mensaje(test_mensaje_prueba)
+                contenido_archivo, ruta = abrir_archivo()
+                if contenido_archivo:
+                    gestor.prueba_de_mensaje(contenido_archivo, ruta)
             
         else:
             print("No se seleccionó ningún archivo.")
     else:
         print("No se cargó ningún archivo.")'''
-        
+
 #---------------- FUNCIONES FLASK ------------------
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
 @app.route('/')
 def index():
-    return render_template('index.html', archivo_original='', archivo_resultante='')
+    return render_template('index.html', contenido_archivo='', archivo_resultante='')
 
 @app.route('/cargar', methods=['POST'])
 def cargar_archivo():
@@ -748,23 +745,29 @@ def cargar_archivo():
         file.save(filepath)
         
         with open(filepath, 'r', encoding='utf-8') as f:
-            archivo_original = f.read()
+            contenido_archivo = f.read()
         
         gestor = GestorDatos()
-        gestor.agregar_mensajes(filepath)
-        gestor.agregar_palabras(filepath)
-        gestor.agregar_empresas(filepath)
-        nombre_archivo_resultante = f"archivo_salida.xml"
+        gestor.agregar_mensajes(contenido_archivo)
+        gestor.agregar_palabras(contenido_archivo)
+        gestor.agregar_empresas(contenido_archivo)
+        
+        gestor.mostrar_mensajes()
+        gestor.mostrar_palabras()
+        gestor.mostrar_empresas()
+        gestor.mostrar_resumen()
+        gestor.mostrar_resumen_detallado()
+        
         gestor.generar_xml_salida()
         
-        ruta_archivo_resultante = os.path.join(app.config['UPLOAD_FOLDER'], nombre_archivo_resultante)
+        ruta_archivo_resultante = os.path.join(app.config['UPLOAD_FOLDER'], "archivo_salida.xml")
         if not os.path.exists(ruta_archivo_resultante):
             flash('El archivo resultante no se generó correctamente')
             return redirect(url_for('index'))
         with open(ruta_archivo_resultante, 'r', encoding='utf-8') as f:
             archivo_resultante = f.read()
         
-        return render_template('index.html', archivo_original=archivo_original, archivo_resultante=archivo_resultante)
+        return render_template('index.html', contenido_archivo=contenido_archivo, archivo_resultante=archivo_resultante)
     else:
         flash('Archivo no permitido')
         return redirect(url_for('index'))
@@ -772,27 +775,20 @@ def cargar_archivo():
 @app.route('/procesar_xml')
 def procesar_xml():
     gestor = GestorDatos()
-    # Lógica para procesar el XML
+    
     flash('Procesamiento del XML completado')
     return redirect(url_for('index'))
 
 @app.route('/limpiar_datos')
 def limpiar_datos():
     gestor = GestorDatos()
-    gestor.limpiar_datos()
+    
     flash('Datos limpiados correctamente')
     return redirect(url_for('index'))
 
 @app.route('/lista')
 def vista_auxiliar():
-    # Lógica para la vista auxiliar
     return render_template('lista.html')
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
-
-if __name__ == '__main__':
-    app.run(debug=True)
 
 if __name__ == '__main__':
     app.run(debug=True)
