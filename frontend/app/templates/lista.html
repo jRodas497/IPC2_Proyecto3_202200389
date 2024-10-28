@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lista de Empresas y Servicios</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='lista.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            
+        </div>
+        <nav>
+           <ul class="nav-links">
+                <li><a href="/index">Home 🏠︎</a></li>
+                <li class="dropdown">   
+                    <a class="dropbtn">Ayuda ▾</a>
+                    <div class="dropdown-content">
+                        <a href="#">Documentación</a>
+                        <a href="#">Acerca de...</a>
+                    </div>
+                </li>
+           </ul>            
+        </nav>
+        <a class="btn" href="#"><button>a</button></a>
+    </header>   
+
+    <h1>Lista de Empresas y Servicios</h1>
+    
+    <h2>Filtrar por Fecha y Empresa</h2>
+    <form method="get" action="{{ url_for('lista') }}">
+        <label for="fecha">Fecha:</label>
+        <input type="date" id="fecha" name="fecha" required>
+        <label for="empresa">Empresa:</label>
+        <select id="empresa" name="empresa">
+            <option value="">Todas las Empresas</option>
+            {% for empresa in empresas.iterar() %}
+            <option value="{{ empresa.nombre }}">{{ empresa.nombre }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit">Filtrar</button>
+    </form>
+
+    <h2>Resumen de Clasificación por Fecha</h2>
+    <canvas id="chart"></canvas>
+    <script>
+        var ctx = document.getElementById('chart').getContext('2d');
+        var chart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Total Mensajes', 'Positivos', 'Negativos', 'Neutros'],
+                datasets: [{
+                    label: 'Resumen de Clasificación',
+                    data: [{{ total_mensajes }}, {{ positivos }}, {{ negativos }}, {{ neutros }}],
+                    backgroundColor: ['rgba(75, 192, 192, 0.2)', 'rgba(54, 162, 235, 0.2)', 'rgba(255, 99, 132, 0.2)', 'rgba(255, 206, 86, 0.2)'],
+                    borderColor: ['rgba(75, 192, 192, 1)', 'rgba(54, 162, 235, 1)', 'rgba(255, 99, 132, 1)', 'rgba(255, 206, 86, 1)'],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    </script>
+
+    <h2>Generar Reporte</h2>
+    <form method="get" action="{{ url_for('generar_reporte') }}">
+        <button type="submit">Generar Reporte en PDF</button>
+    </form>
+
+    <h2>Empresas</h2>
+    <ul>
+        {% for empresa in empresas.iterar() %}
+        <li class="empresa">
+            <strong>Nombre:</strong> {{ empresa.nombre }}<br>
+            <strong>Mensajes Totales:</strong> {{ empresa.mensajes_positivos + empresa.mensajes_negativos + empresa.mensajes_neutros }}<br>
+            <strong>Mensajes Positivos:</strong> {{ empresa.mensajes_positivos }}<br>
+            <strong>Mensajes Negativos:</strong> {{ empresa.mensajes_negativos }}<br>
+            <strong>Mensajes Neutros:</strong> {{ empresa.mensajes_neutros }}<br>
+            <strong>Servicios:</strong>
+            <ul>
+                {% for servicio in empresa.servicios.iterar() %}
+                <li class="servicio">
+                    <strong>Nombre:</strong> {{ servicio.nombre }}<br>
+                    <strong>Mensajes Totales:</strong> {{ servicio.mensajes_positivos + servicio.mensajes_negativos + servicio.mensajes_neutros }}<br>
+                    <strong>Mensajes Positivos:</strong> {{ servicio.mensajes_positivos }}<br>
+                    <strong>Mensajes Negativos:</strong> {{ servicio.mensajes_negativos }}<br>
+                    <strong>Mensajes Neutros:</strong> {{ servicio.mensajes_neutros }}<br>
+                </li>
+                {% endfor %}
+            </ul>
+        </li>
+        {% endfor %}
+    </ul>
+
+    <h2>Mensajes por Fecha</h2>
+    <ul>
+        {% for fecha in mensajes_por_fecha.iterar() %}
+        <li class="fecha">
+            <strong>Fecha:</strong> {{ fecha.fecha }}<br>
+            <ul>
+                {% for mensaje in fecha.mensajes.iterar() %}
+                <li class="mensaje">
+                    <strong>Lugar:</strong> {{ mensaje.lugar }}<br>
+                    <strong>Hora:</strong> {{ mensaje.hora }}<br>
+                    <strong>Usuario:</strong> {{ mensaje.usuario }}<br>
+                    <strong>Red Social:</strong> {{ mensaje.red_social }}<br>
+                    <strong>Clasificación:</strong> {{ mensaje.clasificacion }}<br>
+                    <div class="contenido"><strong>Contenido:</strong> {{ mensaje.contenido }}</div><br>
+                </li>
+                {% endfor %}
+            </ul>
+        </li>
+        {% endfor %}
+    </ul>
+</body>
+</html>

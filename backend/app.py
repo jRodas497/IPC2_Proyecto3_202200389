@@ -1,14 +1,25 @@
 #----------------- IMPORTACIONES -------------------
-from flask import Flask, flash, request, redirect, url_for, render_template, session
+from flask import Flask, flash, request, redirect, send_file, url_for, render_template, session
 from werkzeug.utils import secure_filename
+from fpdf import FPDF
 from tkinter import filedialog
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from xml.dom.minidom import Document
+from django.shortcuts import render, redirect
+from django.http import JsonResponse
+from rest_framework.decorators import api_view
+from django.conf import settings
+from rest_framework.response import Response
+from django.core.files.storage import default_storage
+from ..frontend.frontend.serializers import MensajeSerializer
 import os
 import string
 import re
 import unicodedata
+from reportlab.pdfgen import canvas
+import io
+from reportlab.lib.pagesizes import letter
 #---------------- GESTOR DE DATOS ------------------  
 
 app = Flask(__name__)
@@ -16,8 +27,8 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 app.secret_key = 'supersecretkey'
 app.config['ALLOWED_EXTENSIONS'] = {'xml'}
 
-'''app.template_folder = '../frontend/app/templates'
-app.static_folder = '../frontend/app/static'''
+app.template_folder = '../frontend/app/templates'
+app.static_folder = '../frontend/app/static'
 
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
     os.makedirs(app.config['UPLOAD_FOLDER'])
@@ -135,6 +146,9 @@ class Palabra:
     def __init__(self, texto, tipo):
         self.texto = texto
         self.tipo = tipo
+        
+    def __str__(self):
+        return self.texto
 
 class Servicio:
     def __init__(self, nombre):
@@ -144,6 +158,9 @@ class Servicio:
         self.mensajes_positivos = 0
         self.mensajes_negativos = 0
         self.mensajes_neutros = 0
+        
+    def __str__(self):
+        return self.nombre
 
     def agregar_alias(self, alias):
         if not self.aliases.contiene(alias):
@@ -204,24 +221,21 @@ class FechaMensajes:
 
 class MensajesPorFecha:
     def __init__(self):
-        self.cabeza = None
+        self.fechas = ListaEnlazada()
 
     def agregar_mensaje(self, fecha, mensaje):
-        if not self.cabeza:
-            self.cabeza = FechaMensajes(fecha)
-            self.cabeza.agregar_mensaje(mensaje)
-        else:
-            actual = self.cabeza
-            while actual:
-                if actual.fecha == fecha:
-                    actual.agregar_mensaje(mensaje)
-                    return
-                if not actual.siguiente:
-                    break
-                actual = actual.siguiente
-            nuevo_nodo = FechaMensajes(fecha)
-            nuevo_nodo.agregar_mensaje(mensaje)
-            actual.siguiente = nuevo_nodo
+        actual_fecha = self.fechas.cabeza
+        while actual_fecha:
+            if actual_fecha.valor.fecha == fecha:
+                actual_fecha.valor.agregar_mensaje(mensaje)
+                return
+            actual_fecha = actual_fecha.siguiente
+        nueva_fecha = FechaMensajes(fecha)
+        nueva_fecha.agregar_mensaje(mensaje)
+        self.fechas.agregar(nueva_fecha)
+
+    def iterar(self):
+        return self.fechas.iterar()
 
 class GestorDatos:
     def __init__(self):
@@ -289,12 +303,12 @@ class GestorDatos:
             mensaje = Mensaje.parsear_mensaje(texto)
             self.mensajes_por_fecha.agregar_mensaje(mensaje.fecha, mensaje)
 
-        actual_fecha = self.mensajes_por_fecha.cabeza
+        actual_fecha = self.mensajes_por_fecha.fechas.cabeza
         while actual_fecha:
             print("*****" * 5 )
-            print(f"Fecha: {actual_fecha.fecha}")
+            print(f"Fecha: {actual_fecha.valor.fecha}")
             print("*****" * 5 )
-            actual_mensaje = actual_fecha.mensajes.cabeza
+            actual_mensaje = actual_fecha.valor.mensajes.cabeza
             while actual_mensaje:
                 mensaje = actual_mensaje.valor
                 mensaje.analizar_sentimientos(self.palabras_positivas, self.palabras_negativas)
@@ -349,14 +363,14 @@ class GestorDatos:
       
     def mostrar_resumen_detallado(self):
         self.contar_mensajes_por_empresa()
-        actual_fecha = self.mensajes_por_fecha.cabeza
+        actual_fecha = self.mensajes_por_fecha.fechas.cabeza
         while actual_fecha:
-            print(f"FECHA: {actual_fecha.fecha}")
+            print(f"FECHA: {actual_fecha.valor.fecha}")
             total_mensajes = 0
             positivos = 0
             negativos = 0
             neutros = 0
-            actual_mensaje = actual_fecha.mensajes.cabeza
+            actual_mensaje = actual_fecha.valor.mensajes.cabeza
             while actual_mensaje:
                 mensaje = actual_mensaje.valor
                 total_mensajes += 1
@@ -378,7 +392,7 @@ class GestorDatos:
                 total_empresa_positivos = 0
                 total_empresa_negativos = 0
                 total_empresa_neutros = 0
-                actual_mensaje = actual_fecha.mensajes.cabeza
+                actual_mensaje = actual_fecha.valor.mensajes.cabeza
                 while actual_mensaje:
                     mensaje = actual_mensaje.valor
                     if empresa.nombre in normalizar_texto(mensaje.contenido):
@@ -402,7 +416,7 @@ class GestorDatos:
                     total_servicio_positivos = 0
                     total_servicio_negativos = 0
                     total_servicio_neutros = 0
-                    actual_mensaje = actual_fecha.mensajes.cabeza
+                    actual_mensaje = actual_fecha.valor.mensajes.cabeza
                     while actual_mensaje:
                         mensaje = actual_mensaje.valor
                         if servicio.se_menciona(mensaje.contenido):
@@ -435,12 +449,12 @@ class GestorDatos:
         doc = Document()
         root = doc.createElement("lista_respuestas")
         doc.appendChild(root)
-        actual_fecha = self.mensajes_por_fecha.cabeza
+        actual_fecha = self.mensajes_por_fecha.fechas.cabeza
         while actual_fecha:
             respuesta = doc.createElement("respuesta")
             root.appendChild(respuesta)
             fecha = doc.createElement("fecha")
-            fecha.appendChild(doc.createTextNode(actual_fecha.fecha))
+            fecha.appendChild(doc.createTextNode(actual_fecha.valor.fecha))
             respuesta.appendChild(fecha)
             mensajes = doc.createElement("mensajes")
             respuesta.appendChild(mensajes)
@@ -448,7 +462,7 @@ class GestorDatos:
             positivos = 0
             negativos = 0
             neutros = 0
-            actual_mensaje = actual_fecha.mensajes.cabeza
+            actual_mensaje = actual_fecha.valor.mensajes.cabeza
             while actual_mensaje:
                 mensaje = actual_mensaje.valor
                 total_mensajes += 1
@@ -625,6 +639,86 @@ class GestorDatos:
         with open(archivo_salida, "w", encoding="utf-8") as f:
             f.write(doc.toprettyxml(indent="  "))
 
+    def filtrar_mensajes(self, fecha, empresa):
+        mensajes_filtrados = ListaEnlazada()
+        actual = self.mensajes.cabeza
+        encontrado = False
+        while actual:
+            mensaje = actual.valor
+            if isinstance(mensaje, Mensaje) and mensaje.fecha == fecha and empresa.lower() in mensaje.contenido.lower():
+                encontrado = True
+                print(f"Filtrado - Lugar: {mensaje.lugar}")
+                print(f'Fecha: {mensaje.fecha} | Hora: {mensaje.hora} | Usuario: {mensaje.usuario}')
+                print(f'Red Social: {mensaje.red_social} | Contenido: {mensaje.contenido}')
+                mensajes_filtrados.agregar(mensaje)
+            actual = actual.siguiente
+        
+        if not encontrado:
+            print(f"No se encontraron mensajes para la fecha {fecha} y la empresa {empresa}.")
+        
+        #return mensajes_filtrados
+        
+    def generar_reporte_pdf(self):
+        class PDF(FPDF):
+            def header(self):
+                self.set_font('Arial', 'B', 12)
+                self.cell(0, 10, 'Reporte de Mensajes por Empresa y Servicio', 0, 1, 'C')
+
+            def footer(self):
+                self.set_y(-15)
+                self.set_font('Arial', 'I', 8)
+                self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
+
+        pdf = PDF()
+        pdf.add_page()
+        pdf.set_font('Arial', '', 12)
+
+        for empresa in self.empresas.iterar():
+            pdf.cell(0, 10, f"Empresa: {empresa.nombre}", 0, 1)
+            pdf.cell(10)
+            pdf.cell(0, 10, f"Mensajes Totales: {empresa.mensajes_positivos + empresa.mensajes_negativos + empresa.mensajes_neutros}", 0, 1)
+            pdf.cell(10)
+            pdf.cell(0, 10, f"Mensajes Positivos: {empresa.mensajes_positivos}", 0, 1)
+            pdf.cell(10)
+            pdf.cell(0, 10, f"Mensajes Negativos: {empresa.mensajes_negativos}", 0, 1)
+            pdf.cell(10)
+            pdf.cell(0, 10, f"Mensajes Neutros: {empresa.mensajes_neutros}", 0, 1)
+            pdf.cell(10)
+
+            for servicio in empresa.servicios.iterar():
+                pdf.cell(20)
+                pdf.cell(0, 10, f"Servicio: {servicio.nombre}", 0, 1)
+                pdf.cell(30)
+                pdf.cell(0, 10, f"Mensajes Totales: {servicio.mensajes_positivos + servicio.mensajes_negativos + servicio.mensajes_neutros}", 0, 1)
+                pdf.cell(30)
+                pdf.cell(0, 10, f"Mensajes Positivos: {servicio.mensajes_positivos}", 0, 1)
+                pdf.cell(30)
+                pdf.cell(0, 10, f"Mensajes Negativos: {servicio.mensajes_negativos}", 0, 1)
+                pdf.cell(30)
+                pdf.cell(0, 10, f"Mensajes Neutros: {servicio.mensajes_neutros}", 0, 1)
+                pdf.cell(10)
+
+            pdf.cell(0, 10, '', 0, 1)  # Espacio entre empresas
+
+        pdf.output('reporte.pdf')
+
+    def mostrar_mensajes_por_rango(self, fecha_inicio, fecha_fin):
+        fecha_inicio_dt = datetime.strptime(fecha_inicio, '%d/%m/%Y')
+        fecha_fin_dt = datetime.strptime(fecha_fin, '%d/%m/%Y')
+
+        for fecha_obj in self.mensajes_por_fecha.iterar():
+            fecha_dt = datetime.strptime(fecha_obj.fecha, '%d/%m/%Y')
+            if fecha_inicio_dt <= fecha_dt <= fecha_fin_dt:
+                print(f"Fecha: {fecha_obj.fecha}")
+                for mensaje in fecha_obj.mensajes.iterar():
+                    print(f"  Lugar: {mensaje.lugar}")
+                    print(f"  Hora: {mensaje.hora}")
+                    print(f"  Usuario: {mensaje.usuario}")
+                    print(f"  Red Social: {mensaje.red_social}")
+                    print(f"  Contenido: {mensaje.contenido}")
+                    print(f"  Clasificación: {mensaje.clasificacion}")
+                    print("  ------")
+
 #---------------- FUNCIONES PYTHON ------------------ 
 
 def leer_mensajes(contenido_archivo):
@@ -710,10 +804,9 @@ def abrir_archivo_2():
 
 gestor = GestorDatos()
 
-'''input_usuario = 'si'
+input_usuario = 'si'
 gestor = GestorDatos()
 while input_usuario == "si":
-    input_usuario = input("¿Desea cargar un archivo XML? (si/no): ").strip().lower()
     if input_usuario == "si":
         archivo_entrada, ruta = abrir_archivo()
         if archivo_entrada:
@@ -727,6 +820,12 @@ while input_usuario == "si":
             gestor.mostrar_resumen()
             gestor.mostrar_resumen_detallado()
             
+            opcion_rango_fechas = input("¿Desea filtrar mensajes por rango de fechas? (si/no): ").strip().lower()
+            if opcion_rango_fechas == "si":
+                fecha_inicio = input("Ingrese la fecha de inicio (dd/mm/aaaa): ").strip()
+                fecha_fin = input("Ingrese la fecha de fin (dd/mm/aaaa): ").strip()
+                gestor.mostrar_mensajes_por_rango(fecha_inicio, fecha_fin)
+            
             opcion_archivo_salida = input("¿Desde generar un archivo XML de salida?: (si/no)").strip()
             if opcion_archivo_salida == 'si':
                 gestor.generar_xml_salida()
@@ -737,34 +836,40 @@ while input_usuario == "si":
                 if contenido_archivo:
                     gestor.prueba_de_mensaje(contenido_archivo, ruta)
             
+            opcion_filtrar_mensajes = input("¿Desea filtrar mensajes por fecha y empresa? (si/no): ").strip().lower()
+            if opcion_filtrar_mensajes == "si":
+                fecha = input("Ingrese la fecha a filtrar (dd/mm/aaaa): ").strip()
+                empresa = input("Ingrese el nombre de la empresa a filtrar: ").strip()
+                print(f"Mensajes filtrados para la fecha {fecha} y la empresa {empresa}:")
+                gestor.filtrar_mensajes(fecha, empresa)
+                            
         else:
             print("No se seleccionó ningún archivo.")
     else:
-        print("No se cargó ningún archivo.")'''
+        print("No se cargó ningún archivo.")
 
 #---------------- FUNCIONES FLASK ------------------
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
-@app.route('/')
-def index():
-    return render_template('index.html', contenido_archivo='', archivo_resultante='')
+def index(request):
+    return render(request, 'index.html')
 
-@app.route('/cargar', methods=['POST'])
-def cargar_archivo():
-    if 'file' not in request.files:
-        flash('No file part')
-        return redirect(url_for('index'))
-    file = request.files['file']
-    if file.filename == '':
-        flash('No selected file')
-        return redirect(url_for('index'))
-    if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
+@api_view(['POST'])
+def cargar_archivo(request):
+    if 'file' not in request.FILES:
+        return Response({'error': 'No se ha seleccionado ningún archivo'}, status=400)
+    
+    file = request.FILES['file']
+    
+    if file.name == '':
+        return Response({'error': 'No se ha seleccionado ningún archivo'}, status=400)
+    
+    if file and file.name.endswith('.xml'):
+        file_path = default_storage.save(file.name, file)
+        file_full_path = os.path.join(settings.MEDIA_ROOT, file_path)
         
-        with open(filepath, 'r', encoding='utf-8') as f:
+        with open(file_full_path, 'r', encoding='utf-8') as f:
             contenido_archivo = f.read()
         
         gestor.agregar_mensajes(contenido_archivo)
@@ -778,36 +883,59 @@ def cargar_archivo():
         
         gestor.generar_xml_salida()
         
-        ruta_archivo_resultante = os.path.join(app.config['UPLOAD_FOLDER'], "archivo_salida.xml")
+        ruta_archivo_resultante = os.path.join(settings.MEDIA_ROOT, "archivo_salida.xml")
         if not os.path.exists(ruta_archivo_resultante):
-            flash('El archivo resultante no se generó correctamente')
-            return redirect(url_for('index'))
+            return Response({'error': 'El archivo resultante no se generó correctamente'}, status=500)
+        
         with open(ruta_archivo_resultante, 'r', encoding='utf-8') as f:
             archivo_resultante = f.read()
         
-        return render_template('index.html', contenido_archivo=contenido_archivo, archivo_resultante=archivo_resultante)
+        return render(request, 'index.html', {'contenido_archivo': contenido_archivo, 'archivo_resultante': archivo_resultante})
     else:
-        flash('Archivo no permitido')
-        return redirect(url_for('index'))
+        return Response({'error': 'Formato de archivo no permitido'}, status=400)
 
-@app.route('/procesar_xml')
-def procesar_xml():
-    flash('Procesamiento del XML completado')
-    return redirect(url_for('index'))
-
-@app.route('/limpiar_datos')
-def limpiar_datos():
+@api_view(['POST'])
+def limpiar_datos(request):
     gestor.limpiar_datos()    
     gestor.mostrar_mensajes()
     gestor.mostrar_palabras()
     gestor.mostrar_empresas()
     gestor.mostrar_resumen_detallado()
-    flash('Datos limpiados correctamente')
-    return redirect(url_for('index'))
+    return Response({'success': 'Datos limpiados correctamente'})
 
 @app.route('/lista')
-def vista_auxiliar():
-    return render_template('lista.html')
+def lista():
+    fecha = request.args.get('fecha')
+    empresa = request.args.get('empresa')
+    
+    total_mensajes = 0
+    positivos = 0
+    negativos = 0
+    neutros = 0
 
+    if fecha:
+        for fecha_obj in gestor.mensajes_por_fecha.iterar():
+            if fecha_obj.fecha == fecha:
+                for mensaje in fecha_obj.mensajes.iterar():
+                    if not empresa or empresa.lower() in mensaje.contenido.lower():
+                        total_mensajes += 1
+                        if mensaje.clasificacion == "positivo":
+                            positivos += 1
+                        elif mensaje.clasificacion == "negativo":
+                            negativos += 1
+                        else:
+                            neutros += 1
+
+    empresas = gestor.empresas
+    mensajes_por_fecha = gestor.mensajes_por_fecha
+
+    return render_template('lista.html', empresas=empresas, mensajes_por_fecha=mensajes_por_fecha, total_mensajes=total_mensajes, positivos=positivos, negativos=negativos, neutros=neutros)
+
+@api_view(['GET'])
+def generar_reporte(request):
+    gestor.generar_reporte_pdf()
+    return Response({'success': 'Reporte generado correctamente'})
+'''
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, port = 5000)
+'''    
