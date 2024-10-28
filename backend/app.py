@@ -7,12 +7,7 @@ import xml.etree.ElementTree as ET
 from datetime import datetime
 from xml.dom.minidom import Document
 from django.shortcuts import render, redirect
-from django.http import JsonResponse
-from rest_framework.decorators import api_view
-from django.conf import settings
 from rest_framework.response import Response
-from django.core.files.storage import default_storage
-from ..frontend.frontend.serializers import MensajeSerializer
 import os
 import string
 import re
@@ -804,7 +799,7 @@ def abrir_archivo_2():
 
 gestor = GestorDatos()
 
-input_usuario = 'si'
+'''input_usuario = 'si'
 gestor = GestorDatos()
 while input_usuario == "si":
     if input_usuario == "si":
@@ -847,61 +842,69 @@ while input_usuario == "si":
             print("No se seleccionó ningún archivo.")
     else:
         print("No se cargó ningún archivo.")
+'''
 
 #---------------- FUNCIONES FLASK ------------------
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
-def index(request):
-    return render(request, 'index.html')
+@app.route('/')
+def index():
+    return render_template('index.html', contenido_archivo='', archivo_resultante='')
 
-@api_view(['POST'])
-def cargar_archivo(request):
-    if 'file' not in request.FILES:
-        return Response({'error': 'No se ha seleccionado ningún archivo'}, status=400)
-    
-    file = request.FILES['file']
-    
-    if file.name == '':
-        return Response({'error': 'No se ha seleccionado ningún archivo'}, status=400)
-    
-    if file and file.name.endswith('.xml'):
-        file_path = default_storage.save(file.name, file)
-        file_full_path = os.path.join(settings.MEDIA_ROOT, file_path)
-        
-        with open(file_full_path, 'r', encoding='utf-8') as f:
+@app.route('/cargar', methods=['POST'])
+def cargar_archivo():
+    if 'file' not in request.files:
+        flash('No file part')
+        return redirect(url_for('index'))
+    file = request.files['file']
+    if file.filename == '':
+        flash('No selected file')
+        return redirect(url_for('index'))
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+
+        with open(filepath, 'r', encoding='utf-8') as f:
             contenido_archivo = f.read()
-        
+
+        gestor = GestorDatos()
         gestor.agregar_mensajes(contenido_archivo)
         gestor.agregar_palabras(contenido_archivo)
         gestor.agregar_empresas(contenido_archivo)
-        
+
         gestor.mostrar_mensajes()
         gestor.mostrar_palabras()
         gestor.mostrar_empresas()
+
+        gestor.mostrar_resumen()
         gestor.mostrar_resumen_detallado()
-        
+
         gestor.generar_xml_salida()
-        
-        ruta_archivo_resultante = os.path.join(settings.MEDIA_ROOT, "archivo_salida.xml")
+
+        ruta_archivo_resultante = os.path.join(app.config['UPLOAD_FOLDER'], "archivo_salida.xml")
         if not os.path.exists(ruta_archivo_resultante):
-            return Response({'error': 'El archivo resultante no se generó correctamente'}, status=500)
-        
+            flash('El archivo resultante no se generó correctamente')
+            return redirect(url_for('index'))
         with open(ruta_archivo_resultante, 'r', encoding='utf-8') as f:
             archivo_resultante = f.read()
-        
-        return render(request, 'index.html', {'contenido_archivo': contenido_archivo, 'archivo_resultante': archivo_resultante})
-    else:
-        return Response({'error': 'Formato de archivo no permitido'}, status=400)
 
-@api_view(['POST'])
-def limpiar_datos(request):
+        return render_template('index.html', contenido_archivo=contenido_archivo, archivo_resultante=archivo_resultante)
+    else:
+        flash('Archivo no permitido')
+        return redirect(url_for('index'))
+
+@app.route('/limpiar_datos')
+def limpiar_datos():
+    gestor = GestorDatos()
     gestor.limpiar_datos()    
     gestor.mostrar_mensajes()
     gestor.mostrar_palabras()
     gestor.mostrar_empresas()
     gestor.mostrar_resumen_detallado()
-    return Response({'success': 'Datos limpiados correctamente'})
+    flash('Datos limpiados correctamente')
+    return redirect(url_for('index'))
 
 @app.route('/lista')
 def lista():
@@ -931,11 +934,5 @@ def lista():
 
     return render_template('lista.html', empresas=empresas, mensajes_por_fecha=mensajes_por_fecha, total_mensajes=total_mensajes, positivos=positivos, negativos=negativos, neutros=neutros)
 
-@api_view(['GET'])
-def generar_reporte(request):
-    gestor.generar_reporte_pdf()
-    return Response({'success': 'Reporte generado correctamente'})
-'''
 if __name__ == '__main__':
     app.run(debug=True, port = 5000)
-'''    
