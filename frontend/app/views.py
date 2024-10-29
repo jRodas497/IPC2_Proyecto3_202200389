@@ -1,12 +1,8 @@
 from django.shortcuts import render
-from django.conf import settings
 from django.http import JsonResponse
-from django.core.files.storage import default_storage
-import os
-import xmltodict
 import requests
+import xmltodict
 
-# Create your views here.
 contenido_archivo = ""
 
 def index(request):
@@ -17,14 +13,14 @@ def index(request):
         contenido_archivo = archivo.read().decode("utf-8")
         if contenido_archivo != "":
             json_archivo = xmltodict.parse(contenido_archivo)
-            response = requests.post("http://localhost:5000/cargar", json=json_archivo)
+            response = requests.post("http://localhost:8000/cargar", json=json_archivo)
             res = response.json()
             print(res["message"])
     
     context = {"contenido": contenido_archivo}
     return render(request, "index.html", context=context)
 
-def cargar(request):
+def cargar_archivo(request):
     if request.method == 'POST':
         if 'archivo' not in request.FILES:
             return JsonResponse({'error': 'No se ha seleccionado ningún archivo'}, status=400)
@@ -39,7 +35,7 @@ def cargar(request):
             json_archivo = xmltodict.parse(contenido_archivo)
             
             # Enviar los datos al backend Flask
-            response = requests.post("http://localhost:5000/cargar", json=json_archivo)
+            response = requests.post("http://localhost:8000/cargar", json=json_archivo)
             res = response.json()
             
             # Mostrar datos en consola
@@ -48,33 +44,43 @@ def cargar(request):
             print("Respuesta del backend Flask:")
             print(res["message"])
             
-            return JsonResponse({'message': res["message"], 'error': res["error"], 'contenido_archivo': contenido_archivo})
+            return JsonResponse({'message': res["message"], 'error': res["error"], 'contenido_archivo': contenido_archivo, 'archivo_resultante': res.get('archivo_resultante', '')})
         else:
             return JsonResponse({'error': 'Formato de archivo no permitido'}, status=400)
     return JsonResponse({'error': 'Método no permitido'}, status=405)
 
 def limpiar_datos(request):
     if request.method == 'POST':
-        response = requests.post("http://localhost:5000/limpiarDatos")
+        response = requests.post("http://localhost:8000/limpiar_datos")
         res = response.json()
         return JsonResponse({"message": res["message"], "error": res["error"]})
     return JsonResponse({'error': 'Método no permitido'}, status=405)
 
 def lista(request):
-    if request.method == 'GET':
-        fecha_inicio = request.GET.get('fecha_inicio')
-        fecha_fin = request.GET.get('fecha_fin')
-        
-        response = requests.get(f"http://localhost:5000/resumen?fecha_inicio={fecha_inicio}&fecha_fin={fecha_fin}")
-        res = response.json()
-        
-        context = {"mensajes": res}
-        return render(request, 'lista.html', context=context)
-    return JsonResponse({'error': 'Método no permitido'}, status=405)
+    fecha = request.GET.get('fecha')
+    empresa = request.GET.get('empresa')
+    
+    params = {}
+    if fecha:
+        params['fecha'] = fecha
+    if empresa:
+        params['empresa'] = empresa
+    
+    response = requests.get('http://localhost:8000/lista/', params=params)
+    data = response.json()
+    
+    return JsonResponse({
+        "empresas": data['empresas'],
+        "mensajes": data['mensajes'],
+        "total_mensajes": data['total_mensajes'],
+        "positivos": data['positivos'],
+        "negativos": data['negativos'],
+        "neutros": data['neutros']
+    })
 
 def generar_reporte(request):
     if request.method == 'GET':
-        response = requests.get("http://localhost:5000/generarReporte")
+        response = requests.get("http://localhost:8000/generar_reporte")
         res = response.json()
         return JsonResponse({"message": res["message"], "error": res["error"]})
     return JsonResponse({'error': 'Método no permitido'}, status=405)

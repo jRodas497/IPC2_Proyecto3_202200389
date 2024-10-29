@@ -1,5 +1,5 @@
 #----------------- IMPORTACIONES -------------------
-from flask import Flask, flash, request, redirect, send_file, url_for, render_template, session
+from flask import Flask, flash, request, redirect, send_file, url_for, render_template, session, jsonify
 from werkzeug.utils import secure_filename
 from fpdf import FPDF
 from tkinter import filedialog
@@ -15,6 +15,8 @@ import unicodedata
 from reportlab.pdfgen import canvas
 import io
 from reportlab.lib.pagesizes import letter
+import base64
+from io import BytesIO
 #---------------- GESTOR DE DATOS ------------------  
 
 app = Flask(__name__)
@@ -552,7 +554,7 @@ class GestorDatos:
 
             actual_fecha = actual_fecha.siguiente
 
-        with open(archivo_salida, "w", encoding="utf-8") as f:
+        with open(os.path.join('uploads', 'archivo_salida.xml'), "w", encoding="utf-8") as f:
             f.write(doc.toprettyxml(indent="  "))
         print(f"Archivo XML guardado exitosamente en {archivo_salida}")
 
@@ -714,6 +716,49 @@ class GestorDatos:
                     print(f"  Clasificación: {mensaje.clasificacion}")
                     print("  ------")
 
+    def obtener_mensajes(self):
+        mensajes = []
+        actual_fecha = self.mensajes_por_fecha.fechas.cabeza
+        while actual_fecha:
+            actual_mensaje = actual_fecha.valor.mensajes.cabeza
+            while actual_mensaje:
+                mensaje = actual_mensaje.valor
+                mensajes.append({
+                    "fecha": actual_fecha.valor.fecha,
+                    "lugar": mensaje.lugar,
+                    "hora": mensaje.hora,
+                    "usuario": mensaje.usuario,
+                    "red_social": mensaje.red_social,
+                    "contenido": mensaje.contenido,
+                    "positivas": mensaje.positivas,
+                    "negativas": mensaje.negativas,
+                    "clasificacion": mensaje.clasificacion
+                })
+                actual_mensaje = actual_mensaje.siguiente
+            actual_fecha = actual_fecha.siguiente
+        return mensajes
+
+    def obtener_empresas(self):
+        empresas = []
+        actual_empresa = self.empresas.cabeza
+        while actual_empresa:
+            empresa = actual_empresa.valor
+            servicios = []
+            actual_servicio = empresa.servicios.cabeza
+            while actual_servicio:
+                servicio = actual_servicio.valor
+                servicios.append({
+                    "nombre": servicio.nombre,
+                    "aliases": [alias for alias in servicio.aliases]
+                })
+                actual_servicio = actual_servicio.siguiente
+            empresas.append({
+                "nombre": empresa.nombre,
+                "servicios": servicios
+            })
+            actual_empresa = actual_empresa.siguiente
+        return empresas
+
 #---------------- FUNCIONES PYTHON ------------------ 
 
 def leer_mensajes(contenido_archivo):
@@ -852,50 +897,36 @@ def allowed_file(filename):
 def index():
     return render_template('index.html', contenido_archivo='', archivo_resultante='')
 
-@app.route('/cargar', methods=['POST'])
+@app.route('/cargar/', methods=['POST'])
 def cargar_archivo():
-    if 'file' not in request.files:
-        flash('No file part')
-        return redirect(url_for('index'))
-    file = request.files['file']
-    if file.filename == '':
-        flash('No selected file')
-        return redirect(url_for('index'))
-    if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
+    contenido_archivo = request.form.get('archivo')
+    
+    if not contenido_archivo:
+        return jsonify({"message": "No se ha proporcionado ningún contenido de archivo", "error": True})
+    
+    gestor = GestorDatos()
+    gestor.agregar_mensajes(contenido_archivo)
+    gestor.agregar_palabras(contenido_archivo)
+    gestor.agregar_empresas(contenido_archivo)
 
-        with open(filepath, 'r', encoding='utf-8') as f:
-            contenido_archivo = f.read()
+    gestor.mostrar_mensajes()
+    gestor.mostrar_palabras()
+    gestor.mostrar_empresas()
 
-        gestor = GestorDatos()
-        gestor.agregar_mensajes(contenido_archivo)
-        gestor.agregar_palabras(contenido_archivo)
-        gestor.agregar_empresas(contenido_archivo)
+    gestor.mostrar_resumen()
+    gestor.mostrar_resumen_detallado()
 
-        gestor.mostrar_mensajes()
-        gestor.mostrar_palabras()
-        gestor.mostrar_empresas()
+    gestor.generar_xml_salida()
 
-        gestor.mostrar_resumen()
-        gestor.mostrar_resumen_detallado()
+    ruta_archivo_resultante = os.path.join("uploads", "archivo_salida.xml")
+    if not os.path.exists(ruta_archivo_resultante):
+        return jsonify({"message": "El archivo resultante no se generó correctamente", "error": True})
+    with open(ruta_archivo_resultante, 'r', encoding='utf-8') as f:
+        archivo_resultante = f.read()
 
-        gestor.generar_xml_salida()
+    return jsonify({"message": "La carga se realizó con éxito.", "error": False, "archivo_resultante": archivo_resultante})
 
-        ruta_archivo_resultante = os.path.join(app.config['UPLOAD_FOLDER'], "archivo_salida.xml")
-        if not os.path.exists(ruta_archivo_resultante):
-            flash('El archivo resultante no se generó correctamente')
-            return redirect(url_for('index'))
-        with open(ruta_archivo_resultante, 'r', encoding='utf-8') as f:
-            archivo_resultante = f.read()
-
-        return render_template('index.html', contenido_archivo=contenido_archivo, archivo_resultante=archivo_resultante)
-    else:
-        flash('Archivo no permitido')
-        return redirect(url_for('index'))
-
-@app.route('/limpiar_datos')
+@app.route('/limpiar_datos/', methods=['POST'])
 def limpiar_datos():
     gestor = GestorDatos()
     gestor.limpiar_datos()    
@@ -903,36 +934,26 @@ def limpiar_datos():
     gestor.mostrar_palabras()
     gestor.mostrar_empresas()
     gestor.mostrar_resumen_detallado()
-    flash('Datos limpiados correctamente')
-    return redirect(url_for('index'))
+    return jsonify({"message": "Datos limpiados correctamente", "error": False})
 
-@app.route('/lista')
+@app.route('/lista/', methods=['GET'])
 def lista():
-    fecha = request.args.get('fecha')
-    empresa = request.args.get('empresa')
-    
     total_mensajes = 0
     positivos = 0
     negativos = 0
     neutros = 0
+            
+    empresas = gestor.obtener_empresas()
+    mensajes = gestor.obtener_mensajes()
+    return jsonify({
+        "empresas": empresas,
+        "mensajes": mensajes,
+        "total_mensajes": total_mensajes,
+        "positivos": positivos,
+        "negativos": negativos,
+        "neutros": neutros
+    })
 
-    if fecha:
-        for fecha_obj in gestor.mensajes_por_fecha.iterar():
-            if fecha_obj.fecha == fecha:
-                for mensaje in fecha_obj.mensajes.iterar():
-                    if not empresa or empresa.lower() in mensaje.contenido.lower():
-                        total_mensajes += 1
-                        if mensaje.clasificacion == "positivo":
-                            positivos += 1
-                        elif mensaje.clasificacion == "negativo":
-                            negativos += 1
-                        else:
-                            neutros += 1
-
-    empresas = gestor.empresas
-    mensajes_por_fecha = gestor.mensajes_por_fecha
-
-    return render_template('lista.html', empresas=empresas, mensajes_por_fecha=mensajes_por_fecha, total_mensajes=total_mensajes, positivos=positivos, negativos=negativos, neutros=neutros)
-
+    
 if __name__ == '__main__':
-    app.run(debug=True, port = 5000)
+    app.run(debug=True, port = 8000)

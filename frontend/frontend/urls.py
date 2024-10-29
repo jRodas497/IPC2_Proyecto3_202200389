@@ -20,7 +20,7 @@ from app import views
 
 urlpatterns = [
     path('', views.index, name='index'),
-    path('cargar/', views.cargar, name='cargar_archivo'),
+    path('cargar/', views.cargar_archivo, name='cargar_archivo'),
     path('limpiar_datos/', views.limpiar_datos, name='limpiar_datos'),
     path('lista/', views.lista, name='lista'),
     path('generar_reporte/', views.generar_reporte, name='generar_reporte'),

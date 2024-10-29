@@ -3,18 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <title>Lista de Empresas y Servicios</title>
-    <link rel="stylesheet" type="text/css" href="static/lista.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" type="text/css" href="static/index.css">
 </head>
 <body>
     <header class="header">
         <div class="logo">
-            
+            <!-- Logo content -->
         </div>
         <nav>
            <ul class="nav-links">
-                <li><a href="/">Home 🏠︎</a></li>
-                <li class="dropdown">   
+                <li><a href="/">Inicio</a></li>
+                <li><a href="/lista">Lista</a></li>
+                <li class="dropdown">
                     <a class="dropbtn">Ayuda ▾</a>
                     <div class="dropdown-content">
                         <a href="#">Documentación</a>
@@ -23,62 +24,77 @@
                 </li>
            </ul>            
         </nav>
-        <a class="btn" href="#"><button>a</button></a>
-    </header>   
+    </header>
 
     <h1>Lista de Empresas y Servicios</h1>
+    <table id="empresas-table">
+        <thead>
+            <tr>
+                <th>Empresa</th>
+                <th>Servicio</th>
+                <th>Alias</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Los datos se llenarán aquí mediante JavaScript -->
+        </tbody>
+    </table>
     
-    <h2>Filtrar por Fecha y Empresa</h2>
-    <form method="get">
-        <label for="fecha">Fecha:</label>
-        <input type="date" id="fecha" name="fecha" required>
-        <label for="empresa">Empresa:</label>
-        <select id="empresa" name="empresa">
-            <option value="">Todas las Empresas</option>
-            
-        </select>
-        <button type="submit">Filtrar</button>
-    </form>
+    <h1>Resumen de Mensajes</h1>
+    <p>Total de Mensajes: <span id="total-mensajes"></span></p>
+    <p>Positivos: <span id="positivos"></span></p>
+    <p>Negativos: <span id="negativos"></span></p>
+    <p>Neutros: <span id="neutros"></span></p>
+    <ul id="mensajes-list">
+        <!-- Los datos se llenarán aquí mediante JavaScript -->
+    </ul>
 
-    <h2>Resumen de Clasificación por Fecha</h2>
-    <canvas id="chart"></canvas>
     <script>
-        var ctx = document.getElementById('chart').getContext('2d');
-        var chart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: ['Total Mensajes', 'Positivos', 'Negativos', 'Neutros'],
-                datasets: [{
-                    label: 'Resumen de Clasificación',
-                    data: [{{ total_mensajes }}, {{ positivos }}, {{ negativos }}, {{ neutros }}],
-                    backgroundColor: ['rgba(75, 192, 192, 0.2)', 'rgba(54, 162, 235, 0.2)', 'rgba(255, 99, 132, 0.2)', 'rgba(255, 206, 86, 0.2)'],
-                    borderColor: ['rgba(75, 192, 192, 1)', 'rgba(54, 162, 235, 1)', 'rgba(255, 99, 132, 1)', 'rgba(255, 206, 86, 1)'],
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                scales: {
-                    y: {
-                        beginAtZero: true
-                    }
-                }
-            }
+        document.addEventListener('DOMContentLoaded', function() {
+            fetch('/lista')
+                .then(response => response.json())
+                .then(data => {
+                    const empresasTableBody = document.querySelector('#empresas-table tbody');
+                    const mensajesList = document.getElementById('mensajes-list');
+                    const totalMensajes = document.getElementById('total-mensajes');
+                    const positivos = document.getElementById('positivos');
+                    const negativos = document.getElementById('negativos');
+                    const neutros = document.getElementById('neutros');
+
+                    data.empresas.forEach(empresa => {
+                        empresa.servicios.forEach((servicio, index) => {
+                            const row = document.createElement('tr');
+                            if (index === 0) {
+                                const empresaCell = document.createElement('td');
+                                empresaCell.rowSpan = empresa.servicios.length;
+                                empresaCell.textContent = empresa.nombre;
+                                row.appendChild(empresaCell);
+                            }
+                            const servicioCell = document.createElement('td');
+                            servicioCell.textContent = servicio.nombre;
+                            row.appendChild(servicioCell);
+
+                            const aliasCell = document.createElement('td');
+                            aliasCell.textContent = servicio.aliases.join(', ');
+                            row.appendChild(aliasCell);
+
+                            empresasTableBody.appendChild(row);
+                        });
+                    });
+
+                    totalMensajes.textContent = data.total_mensajes;
+                    positivos.textContent = data.positivos;
+                    negativos.textContent = data.negativos;
+                    neutros.textContent = data.neutros;
+
+                    data.mensajes.forEach(mensaje => {
+                        const listItem = document.createElement('li');
+                        listItem.textContent = `${mensaje.fecha} - ${mensaje.usuario}: ${mensaje.contenido} (${mensaje.clasificacion})`;
+                        mensajesList.appendChild(listItem);
+                    });
+                });
         });
     </script>
 
-    <h2>Generar Reporte</h2>
-    <form method="get">
-        <button type="submit">Generar Reporte en PDF</button>
-    </form>
-
-    <h2>Empresas</h2>
-    <ul>
-
-    </ul>
-
-    <h2>Mensajes por Fecha</h2>
-    <ul>
-
-    </ul>
 </body>
 </html>

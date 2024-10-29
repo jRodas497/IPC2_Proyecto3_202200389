@@ -6,24 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Procesamiento de XML</title>
     <link rel="stylesheet" type="text/css" href="static/index.css">
-    <script>
-        function mostrarContenidoArchivo(event) {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    document.getElementById('archivo').value = e.target.result;
-                    document.getElementById('archivo_resultante').value = '';
-                };
-                reader.readAsText(file);
-            }
-        }
-
-        function limpiarTextareas() {
-            document.getElementById('archivo').value = '';
-            document.getElementById('archivo_resultante').value = '';
-        }
-    </script>
 </head>
 <body>
     <header class="header">
@@ -33,8 +15,8 @@
         <nav>
            <ul class="nav-links">
                 <li><a onclick="limpiarTextareas()">Limpiar Textareas</a></li>
-                <li><a onclick="location.href='{{ url_for('limpiar_datos') }}'">Limpiar Datos (Reset)</a></li>
-                <li><a href="/lista">Peticiones</a></li>
+                <li><a onclick="limpiarDatos()">Limpiar Datos (Reset)</a></li>
+                <li><a href="lista">Peticiones</a></li>
                 <li class="dropdown">
                     <a class="dropbtn">Ayuda ▾</a>
                     <div class="dropdown-content">
@@ -59,7 +41,7 @@
                     <textarea id="archivo_resultante" name="archivo_resultante" rows="20" cols="50"></textarea>
                 </div>
             </div>
-            <input type="file" name="file" onchange="mostrarContenidoArchivo(event)">
+            <input type="file" name="archivo" onchange="mostrarContenidoArchivo(event)">
             <button type="submit">Cargar</button>
         </form>
     </div>
@@ -83,7 +65,7 @@
             fetch('/limpiar_datos/', {
                 method: 'POST',
                 headers: {
-                    'X-CSRFToken': '{{ csrf_token }}'
+                    'X-CSRFToken': getCookie('csrftoken')
                 }
             })
             .then(response => response.json())
@@ -96,15 +78,18 @@
         document.getElementById('cargar-form').addEventListener('submit', function(event) {
             event.preventDefault();
             const formData = new FormData(this);
+            formData.append('archivo', document.getElementById('archivo').value); // Añadir el contenido del textarea
+
             fetch('/cargar/', {
                 method: 'POST',
-                body: formData,
                 headers: {
-                    'X-CSRFToken': '{{ csrf_token }}'
-                }
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: formData
             })
             .then(response => response.json())
             .then(data => {
+                console.log(data); // Imprimir la respuesta en la consola
                 if (data.error) {
                     alert(data.error);
                 } else {
@@ -113,6 +98,22 @@
                 }
             });
         });
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    // Does this cookie string begin with the name we want?
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
     </script>
 
 </body>

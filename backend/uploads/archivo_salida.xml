@@ -11,32 +11,32 @@
     <analisis>
       <empresa nombre="usac">
         <mensajes>
-          <total>5</total>
-          <positivos>2</positivos>
-          <negativos>2</negativos>
-          <neutros>1</neutros>
+          <total>10</total>
+          <positivos>4</positivos>
+          <negativos>4</negativos>
+          <neutros>2</neutros>
         </mensajes>
         <servicios>
           <servicio nombre="inscripcion">
             <mensajes>
-              <total>3</total>
-              <positivos>1</positivos>
-              <negativos>1</negativos>
-              <neutros>1</neutros>
+              <total>6</total>
+              <positivos>2</positivos>
+              <negativos>2</negativos>
+              <neutros>2</neutros>
             </mensajes>
           </servicio>
           <servicio nombre="asignacion">
             <mensajes>
-              <total>1</total>
+              <total>2</total>
               <positivos>0</positivos>
-              <negativos>1</negativos>
+              <negativos>2</negativos>
               <neutros>0</neutros>
             </mensajes>
           </servicio>
           <servicio nombre="graduacion">
             <mensajes>
-              <total>1</total>
-              <positivos>1</positivos>
+              <total>2</total>
+              <positivos>2</positivos>
               <negativos>0</negativos>
               <neutros>0</neutros>
             </mensajes>
@@ -56,32 +56,32 @@
     <analisis>
       <empresa nombre="usac">
         <mensajes>
-          <total>5</total>
-          <positivos>2</positivos>
-          <negativos>2</negativos>
-          <neutros>1</neutros>
+          <total>10</total>
+          <positivos>4</positivos>
+          <negativos>4</negativos>
+          <neutros>2</neutros>
         </mensajes>
         <servicios>
           <servicio nombre="inscripcion">
             <mensajes>
-              <total>3</total>
-              <positivos>1</positivos>
-              <negativos>1</negativos>
-              <neutros>1</neutros>
+              <total>6</total>
+              <positivos>2</positivos>
+              <negativos>2</negativos>
+              <neutros>2</neutros>
             </mensajes>
           </servicio>
           <servicio nombre="asignacion">
             <mensajes>
-              <total>1</total>
+              <total>2</total>
               <positivos>0</positivos>
-              <negativos>1</negativos>
+              <negativos>2</negativos>
               <neutros>0</neutros>
             </mensajes>
           </servicio>
           <servicio nombre="graduacion">
             <mensajes>
-              <total>1</total>
-              <positivos>1</positivos>
+              <total>2</total>
+              <positivos>2</positivos>
               <negativos>0</negativos>
               <neutros>0</neutros>
             </mensajes>
