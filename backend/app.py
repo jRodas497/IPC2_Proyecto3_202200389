@@ -1,13 +1,12 @@
 #----------------- IMPORTACIONES -------------------
 from flask import Flask, flash, request, redirect, send_file, url_for, render_template, session, jsonify
-from werkzeug.utils import secure_filename
-from fpdf import FPDF
+import plotly.graph_objs as go
+import plotly.io as pio
 from tkinter import filedialog
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from xml.dom.minidom import Document
 from django.shortcuts import render, redirect
-from rest_framework.response import Response
 import os
 import string
 import re
@@ -660,84 +659,60 @@ class GestorDatos:
         print(f"Archivo XML guardado exitosamente en {archivo_salida}")
 
     def filtrar_mensajes(self, fecha, empresa):
-        mensajes_filtrados = ListaEnlazada()
         actual = self.mensajes.cabeza
         encontrado = False
+        contenido = ''
+        total_mensajes = 0
+        total_positivos = 0
+        total_negativos = 0
+        total_neutros = 0
+        
+        fecha_dt = datetime.strptime(fecha, '%d/%m/%Y')
+    
         while actual:
             mensaje = actual.valor
-            if isinstance(mensaje, Mensaje) and mensaje.fecha == fecha and empresa.lower() in mensaje.contenido.lower():
-                encontrado = True
-                print(f"Filtrado - Lugar: {mensaje.lugar}")
-                print(f'Fecha: {mensaje.fecha} | Hora: {mensaje.hora} | Usuario: {mensaje.usuario}')
-                print(f'Red Social: {mensaje.red_social} | Contenido: {mensaje.contenido}')
-                mensajes_filtrados.agregar(mensaje)
-            actual = actual.siguiente
+            print(mensaje.fecha)
         
+            mensaje_fecha_dt = datetime.strptime(mensaje.fecha, '%d/%m/%Y') if isinstance(mensaje.fecha, str) else mensaje.fecha
+            if mensaje_fecha_dt == fecha_dt and empresa.lower() in mensaje.empresa.lower():
+                encontrado = True
+                total_mensajes += 1
+                if mensaje.clasificacion == "positivo":
+                    total_positivos += 1
+                elif mensaje.clasificacion == "negativo":
+                    total_negativos += 1
+                else:
+                    total_neutros += 1
+                    
+                contenido += f"Lugar: {mensaje.lugar}\n"
+                contenido += f"Fecha: {mensaje.fecha} | Hora: {mensaje.hora} | Usuario: {mensaje.usuario} \n"
+                contenido += f"Red Social: {mensaje.red_social}\n"
+                contenido += f"Contenido: {mensaje.contenido}\n"
+            actual = actual.siguiente
+            
         if not encontrado:
             print(f"No se encontraron mensajes para la fecha {fecha} y la empresa {empresa}.")
+            
+        return contenido, total_mensajes, total_positivos, total_negativos, total_neutros
         
-        #return mensajes_filtrados
-        
-    def generar_reporte_pdf(self):
-        class PDF(FPDF):
-            def header(self):
-                self.set_font('Arial', 'B', 12)
-                self.cell(0, 10, 'Reporte de Mensajes por Empresa y Servicio', 0, 1, 'C')
-
-            def footer(self):
-                self.set_y(-15)
-                self.set_font('Arial', 'I', 8)
-                self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
-
-        pdf = PDF()
-        pdf.add_page()
-        pdf.set_font('Arial', '', 12)
-
-        for empresa in self.empresas.iterar():
-            pdf.cell(0, 10, f"Empresa: {empresa.nombre}", 0, 1)
-            pdf.cell(10)
-            pdf.cell(0, 10, f"Mensajes Totales: {empresa.mensajes_positivos + empresa.mensajes_negativos + empresa.mensajes_neutros}", 0, 1)
-            pdf.cell(10)
-            pdf.cell(0, 10, f"Mensajes Positivos: {empresa.mensajes_positivos}", 0, 1)
-            pdf.cell(10)
-            pdf.cell(0, 10, f"Mensajes Negativos: {empresa.mensajes_negativos}", 0, 1)
-            pdf.cell(10)
-            pdf.cell(0, 10, f"Mensajes Neutros: {empresa.mensajes_neutros}", 0, 1)
-            pdf.cell(10)
-
-            for servicio in empresa.servicios.iterar():
-                pdf.cell(20)
-                pdf.cell(0, 10, f"Servicio: {servicio.nombre}", 0, 1)
-                pdf.cell(30)
-                pdf.cell(0, 10, f"Mensajes Totales: {servicio.mensajes_positivos + servicio.mensajes_negativos + servicio.mensajes_neutros}", 0, 1)
-                pdf.cell(30)
-                pdf.cell(0, 10, f"Mensajes Positivos: {servicio.mensajes_positivos}", 0, 1)
-                pdf.cell(30)
-                pdf.cell(0, 10, f"Mensajes Negativos: {servicio.mensajes_negativos}", 0, 1)
-                pdf.cell(30)
-                pdf.cell(0, 10, f"Mensajes Neutros: {servicio.mensajes_neutros}", 0, 1)
-                pdf.cell(10)
-
-            pdf.cell(0, 10, '', 0, 1)  # Espacio entre empresas
-
-        pdf.output('reporte.pdf')
-
     def mostrar_mensajes_por_rango(self, fecha_inicio, fecha_fin):
+        mensajes = ''
         fecha_inicio_dt = datetime.strptime(fecha_inicio, '%d/%m/%Y')
         fecha_fin_dt = datetime.strptime(fecha_fin, '%d/%m/%Y')
 
         for fecha_obj in self.mensajes_por_fecha.iterar():
             fecha_dt = datetime.strptime(fecha_obj.fecha, '%d/%m/%Y')
             if fecha_inicio_dt <= fecha_dt <= fecha_fin_dt:
-                print(f"Fecha: {fecha_obj.fecha}")
+                mensajes += f"Fecha: {fecha_obj.fecha}\n"
                 for mensaje in fecha_obj.mensajes.iterar():
-                    print(f"  Lugar: {mensaje.lugar}")
-                    print(f"  Hora: {mensaje.hora}")
-                    print(f"  Usuario: {mensaje.usuario}")
-                    print(f"  Red Social: {mensaje.red_social}")
-                    print(f"  Contenido: {mensaje.contenido}")
-                    print(f"  Clasificación: {mensaje.clasificacion}")
-                    print("  ------")
+                    mensajes += f"  Lugar: {mensaje.lugar}\n"
+                    mensajes += f"  Hora: {mensaje.hora}\n"
+                    mensajes += f"  Usuario: {mensaje.usuario}\n"
+                    mensajes += f"  Red Social: {mensaje.red_social}\n"
+                    mensajes += f"  Contenido: {mensaje.contenido}\n"
+                    mensajes += f"  Palabras Positivas: {mensaje.positivas}\n"
+                    mensajes += f"  Clasificación: {mensaje.clasificacion}\n"
+        return mensajes
 
     def formatear_datos(self):
         resumen = ''
@@ -901,6 +876,19 @@ def abrir_archivo_2():
     
     return abrir_archivo()
 
+def dividir_texto(texto, max_ancho, canvas):
+    palabras = texto.split(' ')
+    lineas = []
+    linea_actual = ''
+    for palabra in palabras:
+        if canvas.stringWidth(linea_actual + ' ' + palabra) <= max_ancho:
+            linea_actual += ' ' + palabra
+        else:
+            lineas.append(linea_actual)
+            linea_actual = palabra
+    lineas.append(linea_actual)
+    return lineas
+
 '''input_usuario = 'si'
 gestor = GestorDatos()
 while input_usuario == "si":
@@ -947,7 +935,9 @@ while input_usuario == "si":
 '''
 
 #---------------- FUNCIONES FLASK ------------------
+global gestor
 gestor = GestorDatos()
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
@@ -981,7 +971,8 @@ def cargar_archivo():
     with open(ruta_archivo_resultante, 'r', encoding='utf-8') as f:
         archivo_resultante = f.read()
 
-    return jsonify({"message": "La carga se realizó con éxito.", "error": False, "archivo_resultante": archivo_resultante})
+    datos_formateados = gestor.formatear_datos()
+    return jsonify({"message": "La carga se realizó con éxito.", "error": False, "archivo_resultante": archivo_resultante, "datos_formateados": datos_formateados})
 
 @app.route('/prueba_mensaje/', methods=['POST'])
 def prueba_mensaje():
@@ -1004,15 +995,17 @@ def prueba_mensaje():
 
 @app.route('/limpiar_datos/', methods=['POST'])
 def limpiar_datos():
+    global gestor
     gestor = GestorDatos()
     gestor.limpiar_datos()    
     gestor.mostrar_mensajes()
     gestor.mostrar_palabras()
     gestor.mostrar_empresas()
     gestor.mostrar_resumen_detallado()
+    
     return jsonify({"message": "Datos limpiados correctamente", "error": False})
 
-@app.route('/lista/', methods=['GET', 'POST'])
+@app.route('/lista/', methods=['GET'])
 def lista():
     gestor.mostrar_mensajes()
     gestor.mostrar_palabras()
@@ -1022,7 +1015,105 @@ def lista():
     
     datos_formateados = gestor.formatear_datos()
     return jsonify({"datos_formateados": datos_formateados})
+        
+@app.route('/generar_pdf/', methods=['GET'])
+def generar_pdf():
+    buffer = BytesIO()
+    p = canvas.Canvas(buffer, pagesize=letter)
+    width, height = letter
     
+    contenido = gestor.formatear_datos()
     
+    p.setTitle("Resumen_Detallado")
+    p.drawString(100, height - 50, "Resumen de Datos Detallados")
+    
+    y = height - 100
+    for line in contenido.split('\n'):
+        p.drawString(100, y, line)
+        y -= 15
+        if y < 50:
+            p.showPage()
+            y = height - 50
+    
+    p.showPage()
+    p.save()
+    
+    buffer.seek(0)
+    return send_file(buffer, as_attachment=True, download_name='Resumen_Detallado.pdf', mimetype='application/pdf')
+
+@app.route('/mostrar_mensajes_por_rango/', methods=['POST'])
+def mostrar_mensajes_por_rango():
+    fecha_inicio = request.form.get('fecha_inicio')
+    fecha_fin = request.form.get('fecha_fin')
+    
+    if not fecha_inicio or not fecha_fin:
+        return jsonify({"message": "No se han proporcionado ambas fechas", "error": True})
+
+    mensajes = gestor.mostrar_mensajes_por_rango(fecha_inicio, fecha_fin)
+    print(f"mensajes: {mensajes}")
+    
+    buffer = BytesIO()
+    p = canvas.Canvas(buffer, pagesize=letter)
+    width, height = letter
+    
+    p.setTitle("Resumen_Mensajes_Rango")
+    p.drawString(100, height - 50, "Resumen_Mensajes_Rango")
+    
+    y = height - 100
+    max_ancho = width - 200  
+    for line in mensajes.split('\n'):
+        lineas = dividir_texto(line, max_ancho, p)
+        for linea in lineas:
+            p.drawString(100, y, linea)
+            y -= 15
+            if y < 50:
+                p.showPage()
+                y = height - 50
+
+    p.showPage()
+    p.save()
+
+    buffer.seek(0)
+    return send_file(buffer, as_attachment=True, download_name='Resumen_Mensajes_Rango.pdf', mimetype='application/pdf')
+  
+@app.route('/resumen_clasificacion_por_fecha/', methods=['POST'])
+def resumen_clasificacion_por_fecha():
+    fecha = request.form.get('fecha')
+    empresa = request.form.get('empresa')
+    
+    if not fecha:
+        return jsonify({"message": "No se ha proporcionado la fecha", "error": True})
+    
+    directorio_actual = os.path.dirname(os.path.abspath(__file__))
+    ruta_uploads = os.path.join(directorio_actual, 'uploads')
+        
+    if not os.path.exists(ruta_uploads):
+        os.makedirs(ruta_uploads)
+        
+    image_path = os.path.join(ruta_uploads, "grafica.png")
+    
+    resumen, total_mensajes, total_positivos, total_negativos, total_neutros = gestor.filtrar_mensajes(fecha, empresa)
+    
+    categorias = ['Total Mensajes', 'Positivos', 'Negativos', 'Neutros']
+    valores = [total_mensajes, total_positivos, total_negativos, total_neutros]
+
+    data_grafica = go.Bar(y=valores, x=categorias)
+    
+    layout = go.Layout(
+        title=f"Resumen de Clasificación por Fecha: {fecha}",
+        xaxis={"title": "Clasificación"},
+        yaxis={"title": "Cantidad"}
+    )
+
+    fig = go.Figure(data=[data_grafica], layout=layout)
+    img_bytes = pio.to_image(fig, format='png')
+    
+    with open(image_path, "wb") as f:
+        f.write(img_bytes)
+                    
+    print(f"Imagen guardada exitosamente en {image_path}")
+    
+    return jsonify({"message": "Resumen generado con éxito", "image_path": image_path, "error": False})
+
 if __name__ == '__main__':
     app.run(debug=True, port = 8000)

@@ -24,6 +24,7 @@ urlpatterns = [
     path('prueba_mensaje/', views.prueba_mensaje, name='prueba_mensaje'),
     path('limpiar_datos/', views.limpiar_datos, name='limpiar_datos'),
     path('lista/', views.lista, name='lista'),
-    path('generar_reporte/', views.generar_reporte, name='generar_reporte'),
-    
+    path('generar_pdf/', views.generar_pdf, name='generar_pdf'),
+    path('mostrar_mensajes_por_rango/', views.mostrar_mensajes_por_rango, name='mostrar_mensajes_por_rango'),
+    path('resumen_clasificacion_por_fecha/', views.resumen_clasificacion_por_fecha, name='resumen_clasificacion_por_fecha'),
 ]

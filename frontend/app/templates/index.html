@@ -20,8 +20,8 @@
                 <li class="dropdown">
                     <a class="dropbtn">Ayuda ▾</a>
                     <div class="dropdown-content">
-                        <a href="#">Documentación</a>
-                        <a href="#">Acerca de...</a>
+                        <a href="https://drive.google.com/drive/folders/1lrTn5pfudh6RjHzkmCvf51c6ISUDMqED?usp=sharing">Documentación</a>
+                        <a href="https://github.com/jRodas497">Acerca de...</a>
                     </div>
                 </li>
            </ul>            
@@ -61,6 +61,50 @@
             <input type="file" name="archivo_prueba" onchange="mostrarContenidoArchivoPrueba(event)">
             <button type="submit">Cargar Prueba</button>
         </form>
+    </div>
+
+    <div class="form-container">
+        <h2>Mostrar Mensajes por Rango de Fechas</h2>
+        <form class="centered-form" method="post" id="rango-fechas-form">
+            <div style="display: flex;">
+                <div style="flex: 1; margin-right: 10px;">
+                    <h2>Fecha Inicio</h2>
+                    <input type="text" id="fecha_inicio" name="fecha_inicio">
+                </div>
+                <div style="flex: 1; margin-left: 10px;">
+                    <h2>Fecha Fin</h2>
+                    <input type="text" id="fecha_fin" name="fecha_fin">
+                </div>
+            </div>
+            <br>
+            <button type="submit">Mostrar Mensajes por Rango</button>
+        </form>
+    </div>
+
+    <div class="form-container">
+        <form class="centered-form" method="post" id="resumen-clasificacion-form">
+            <div style="display: flex;">
+                <div style="flex: 1; margin-right: 10px;">
+                    <h2>Fecha</h2>
+                    <input type="text" id="fecha" name="fecha">
+                </div>
+                <div style="flex: 1; margin-left: 10px;">
+                    <h2>Empresa</h2>
+                    <input type="text" id="empresa" name="empresa" placeholder="Todas las empresas">
+                </div>
+            </div>
+            <br>
+            <button type="submit">Generar Resumen de Clasificación</button>
+        </form>
+    </div>
+    
+    <h2>Resumen de Datos:</h2><br>
+    <div class="form-container">        
+        <p id="datos_formateados">{{ datos_formateados }}</p>
+    </div>
+
+    <div class="form-container">
+        <button onclick="generarPDF()">Generar PDF</button>
     </div>
 
     <script>
@@ -145,6 +189,7 @@
                     alert(data.error);
                 } else {
                     document.getElementById('archivo_resultante').value = data.archivo_resultante;
+                    document.getElementById('datos_formateados').innerHTML = data.datos_formateados.replace(/\n/g, '<br>');
                     alert(data.message);
                 }
             });
@@ -173,6 +218,81 @@
                 }
             });
         });
+
+        document.getElementById('rango-fechas-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const formData = new FormData(this);
+            formData.append('fecha_inicio', document.getElementById('fecha_inicio').value);
+            formData.append('fecha_fin', document.getElementById('fecha_fin').value);
+
+            fetch('/mostrar_mensajes_por_rango/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: formData
+            })
+            .then(response => response.blob())
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = 'Resumen_Mensajes_Rango.pdf';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+            })
+            .catch(error => console.error('Error al generar el PDF:', error));
+        });
+
+        document.getElementById('resumen-clasificacion-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const formData = new FormData(this);
+            formData.append('fecha', document.getElementById('fecha').value);
+            formData.append('empresa', document.getElementById('empresa').value);
+
+            fetch('/resumen_clasificacion_por_fecha/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: formData
+            })
+            .then(response => response.blob())
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = 'Resumen_Clasificacion.pdf';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+            })
+            .catch(error => console.error('Error al generar el PDF:', error));
+        });
+
+        function generarPDF() {
+            fetch('/generar_pdf/', {
+                method: 'GET',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            })
+            .then(response => response.blob())
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = 'Resumen_Detallado.pdf';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+            })
+            .catch(error => console.error('Error al generar el PDF:', error));
+        }
 
         function getCookie(name) {
             let cookieValue = null;

@@ -63,6 +63,16 @@ body{
     align-items: center;
     width: 100%;
     height: calc(100vh - 85px);
+    margin-bottom: 20px;
+}
+
+#datos_formateados {
+    margin-top: 20px;
+    white-space: pre-wrap; 
+    white-space: -moz-pre-wrap;
+    white-space: -pre-wrap; 
+    white-space: -o-pre-wrap;
+    word-wrap: break-word; 
 }
 
 .centered-form {
@@ -122,6 +132,12 @@ body{
     border-radius: 50px;
     cursor: pointer;
     transition: all 0.3s ease 0s;
+}
+
+.formato {
+    background-color: #fff59d;
+    background: #fff59d;
+    border: none;
 }
 
 .header .btn button:hover{
