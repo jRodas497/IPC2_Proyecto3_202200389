@@ -139,6 +139,14 @@ class Mensaje:
         else:
             self.clasificacion = "neutro"   
 
+    def to_dict(self):
+        return {
+            "fecha": self.fecha,
+            "usuario": self.usuario,
+            "contenido": self.contenido,
+            "clasificacion": self.clasificacion
+        }
+
 class Palabra:
     def __init__(self, texto, tipo):
         self.texto = texto
@@ -183,6 +191,12 @@ class Servicio:
                 return True
         return False
 
+    def to_dict(self):
+        return {
+            "nombre": self.nombre,
+            "aliases": self.aliases
+        }
+
 class Empresa:
     def __init__(self, nombre):
         self.nombre = nombre
@@ -206,6 +220,12 @@ class Empresa:
             self.mensajes_negativos += 1
         elif clasificacion == "neutro":
             self.mensajes_neutros += 1
+            
+    def to_dict(self):
+        return {
+            "nombre": self.nombre,
+            "servicios": [servicio.to_dict() for servicio in self.servicios]
+        }
 
 class FechaMensajes:
     def __init__(self, fecha):
@@ -558,7 +578,15 @@ class GestorDatos:
             f.write(doc.toprettyxml(indent="  "))
         print(f"Archivo XML guardado exitosamente en {archivo_salida}")
 
-    def prueba_de_mensaje(self, contenido_archivo, ruta):
+    def prueba_de_mensaje(self, contenido_archivo):
+        directorio_actual = os.path.dirname(os.path.abspath(__file__))
+        ruta_uploads = os.path.join(directorio_actual, 'uploads')
+        
+        if not os.path.exists(ruta_uploads):
+            os.makedirs(ruta_uploads)
+        
+        archivo_salida = os.path.join(ruta_uploads, "msjPRUEBA.xml")
+        
         root = ET.fromstring(contenido_archivo)
 
         if root.tag != 'mensaje' or len(root) != 0:
@@ -627,14 +655,9 @@ class GestorDatos:
         sentimiento_analizado_elem.appendChild(doc.createTextNode(mensaje.clasificacion))
         respuesta.appendChild(sentimiento_analizado_elem)
 
-        directorio_actual = os.path.dirname(os.path.abspath(__file__))
-        ruta_uploads = os.path.join(directorio_actual, 'uploads')
-        if not os.path.exists(ruta_uploads):
-            os.makedirs(ruta_uploads)
-
-        archivo_salida = os.path.join(ruta_uploads, os.path.splitext(os.path.basename(ruta))[0] + "_msjPRUEBA.xml")
-        with open(archivo_salida, "w", encoding="utf-8") as f:
+        with open(os.path.join('uploads', 'msjPRUEBA.xml'), "w", encoding="utf-8") as f:
             f.write(doc.toprettyxml(indent="  "))
+        print(f"Archivo XML guardado exitosamente en {archivo_salida}")
 
     def filtrar_mensajes(self, fecha, empresa):
         mensajes_filtrados = ListaEnlazada()
@@ -716,48 +739,84 @@ class GestorDatos:
                     print(f"  Clasificación: {mensaje.clasificacion}")
                     print("  ------")
 
-    def obtener_mensajes(self):
-        mensajes = []
+    def formatear_datos(self):
+        resumen = ''
+        
+        self.contar_mensajes_por_empresa()
         actual_fecha = self.mensajes_por_fecha.fechas.cabeza
         while actual_fecha:
+            resumen += f"FECHA: {actual_fecha.valor.fecha}\n"
+            total_mensajes = 0
+            positivos = 0
+            negativos = 0
+            neutros = 0
             actual_mensaje = actual_fecha.valor.mensajes.cabeza
             while actual_mensaje:
                 mensaje = actual_mensaje.valor
-                mensajes.append({
-                    "fecha": actual_fecha.valor.fecha,
-                    "lugar": mensaje.lugar,
-                    "hora": mensaje.hora,
-                    "usuario": mensaje.usuario,
-                    "red_social": mensaje.red_social,
-                    "contenido": mensaje.contenido,
-                    "positivas": mensaje.positivas,
-                    "negativas": mensaje.negativas,
-                    "clasificacion": mensaje.clasificacion
-                })
+                total_mensajes += 1
+                if mensaje.clasificacion == "positivo":
+                    positivos += 1
+                elif mensaje.clasificacion == "negativo":
+                    negativos += 1
+                else:
+                    neutros += 1
                 actual_mensaje = actual_mensaje.siguiente
-            actual_fecha = actual_fecha.siguiente
-        return mensajes
+                
+            resumen += f"Cantidad total de mensajes recibidos: {total_mensajes}\n"
+            resumen += f"Cantidad total de mensajes positivos: {positivos}\n"
+            resumen += f"Cantidad total de mensajes negativos: {negativos}\n"
+            resumen += f"Cantidad total de mensajes neutros: {neutros}\n\n"
+            
+            for empresa in self.empresas.iterar():
+                total_empresa_mensajes = 0
+                total_empresa_positivos = 0
+                total_empresa_negativos = 0
+                total_empresa_neutros = 0
+                actual_mensaje = actual_fecha.valor.mensajes.cabeza
+                while actual_mensaje:
+                    mensaje = actual_mensaje.valor
+                    if empresa.nombre in normalizar_texto(mensaje.contenido):
+                        total_empresa_mensajes += 1
+                        if mensaje.clasificacion == "positivo":
+                            total_empresa_positivos += 1
+                        elif mensaje.clasificacion == "negativo":
+                            total_empresa_negativos += 1
+                        else:
+                            total_empresa_neutros += 1
+                    actual_mensaje = actual_mensaje.siguiente
+                    
+                resumen += f"  Empresa: {empresa.nombre}\n"
+                resumen += f"    Número total de mensajes que mencionan a Empresa: {total_empresa_mensajes}\n"
+                resumen += f"    Mensajes positivos: {total_empresa_positivos}\n"
+                resumen += f"    Mensajes negativos: {total_empresa_negativos}\n"
+                resumen += f"    Mensajes neutros: {total_empresa_neutros}\n"
 
-    def obtener_empresas(self):
-        empresas = []
-        actual_empresa = self.empresas.cabeza
-        while actual_empresa:
-            empresa = actual_empresa.valor
-            servicios = []
-            actual_servicio = empresa.servicios.cabeza
-            while actual_servicio:
-                servicio = actual_servicio.valor
-                servicios.append({
-                    "nombre": servicio.nombre,
-                    "aliases": [alias for alias in servicio.aliases]
-                })
-                actual_servicio = actual_servicio.siguiente
-            empresas.append({
-                "nombre": empresa.nombre,
-                "servicios": servicios
-            })
-            actual_empresa = actual_empresa.siguiente
-        return empresas
+                for servicio in empresa.servicios.iterar():
+                    total_servicio_mensajes = 0
+                    total_servicio_positivos = 0
+                    total_servicio_negativos = 0
+                    total_servicio_neutros = 0
+                    actual_mensaje = actual_fecha.valor.mensajes.cabeza
+                    while actual_mensaje:
+                        mensaje = actual_mensaje.valor
+                        if servicio.se_menciona(mensaje.contenido):
+                            total_servicio_mensajes += 1
+                            if mensaje.clasificacion == "positivo":
+                                total_servicio_positivos += 1
+                            elif mensaje.clasificacion == "negativo":
+                                total_servicio_negativos += 1
+                            else:
+                                total_servicio_neutros += 1
+                        actual_mensaje = actual_mensaje.siguiente
+
+                    resumen += f"    Servicio: {servicio.nombre}\n"
+                    resumen += f"      Número total de mensajes que mencionan al servicio: {total_servicio_mensajes}\n"
+                    resumen += f"      Mensajes positivos: {total_servicio_positivos}\n"
+                    resumen += f"      Mensajes negativos: {total_servicio_negativos}\n"
+                    resumen += f"      Mensajes neutros: {total_servicio_neutros}\n"
+
+            actual_fecha = actual_fecha.siguiente
+        return resumen
 
 #---------------- FUNCIONES PYTHON ------------------ 
 
@@ -842,8 +901,6 @@ def abrir_archivo_2():
     
     return abrir_archivo()
 
-gestor = GestorDatos()
-
 '''input_usuario = 'si'
 gestor = GestorDatos()
 while input_usuario == "si":
@@ -890,6 +947,7 @@ while input_usuario == "si":
 '''
 
 #---------------- FUNCIONES FLASK ------------------
+gestor = GestorDatos()
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
@@ -904,7 +962,6 @@ def cargar_archivo():
     if not contenido_archivo:
         return jsonify({"message": "No se ha proporcionado ningún contenido de archivo", "error": True})
     
-    gestor = GestorDatos()
     gestor.agregar_mensajes(contenido_archivo)
     gestor.agregar_palabras(contenido_archivo)
     gestor.agregar_empresas(contenido_archivo)
@@ -926,6 +983,25 @@ def cargar_archivo():
 
     return jsonify({"message": "La carga se realizó con éxito.", "error": False, "archivo_resultante": archivo_resultante})
 
+@app.route('/prueba_mensaje/', methods=['POST'])
+def prueba_mensaje():
+    contenido_archivo = request.form.get('archivo_prueba')
+    
+    if not contenido_archivo:
+        return jsonify({"message": "No se ha proporcionado ningún contenido de archivo", "error": True})
+    
+    #mmmmm
+    ruta_archivo_resultante = os.path.join("uploads", "msjPRUEBA.xml")
+    gestor.prueba_de_mensaje(contenido_archivo)
+    
+    if not os.path.exists(ruta_archivo_resultante):
+        return jsonify({"message": "El archivo resultante no se generó correctamente", "error": True})
+    with open(ruta_archivo_resultante, 'r', encoding='utf-8') as f:
+        archivo_resultante = f.read()
+        print(f"contenido del xml: {archivo_resultante}")
+
+    return jsonify({"message": "La carga se realizó con éxito.", "error": False, "archivo_resultante_prueba": archivo_resultante})
+
 @app.route('/limpiar_datos/', methods=['POST'])
 def limpiar_datos():
     gestor = GestorDatos()
@@ -936,24 +1012,17 @@ def limpiar_datos():
     gestor.mostrar_resumen_detallado()
     return jsonify({"message": "Datos limpiados correctamente", "error": False})
 
-@app.route('/lista/', methods=['GET'])
+@app.route('/lista/', methods=['GET', 'POST'])
 def lista():
-    total_mensajes = 0
-    positivos = 0
-    negativos = 0
-    neutros = 0
-            
-    empresas = gestor.obtener_empresas()
-    mensajes = gestor.obtener_mensajes()
-    return jsonify({
-        "empresas": empresas,
-        "mensajes": mensajes,
-        "total_mensajes": total_mensajes,
-        "positivos": positivos,
-        "negativos": negativos,
-        "neutros": neutros
-    })
-
+    gestor.mostrar_mensajes()
+    gestor.mostrar_palabras()
+    gestor.mostrar_empresas()
+    gestor.mostrar_resumen()
+    gestor.mostrar_resumen_detallado()
+    
+    datos_formateados = gestor.formatear_datos()
+    return jsonify({"datos_formateados": datos_formateados})
+    
     
 if __name__ == '__main__':
     app.run(debug=True, port = 8000)

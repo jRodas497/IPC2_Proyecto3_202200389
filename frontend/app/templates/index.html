@@ -46,6 +46,23 @@
         </form>
     </div>
 
+    <div class="form-container">
+        <form class="centered-form" method="post" enctype="multipart/form-data" id="prueba-mensaje-form">
+            <div style="display: flex;">
+                <div style="flex: 1; margin-right: 10px;">
+                    <h2>Prueba de Mensaje Original</h2>
+                    <textarea id="prueba_mensaje" name="prueba_mensaje" rows="20" cols="50"></textarea>
+                </div>
+                <div style="flex: 1; margin-left: 10px;">
+                    <h2>Prueba de Mensaje Resultante</h2>
+                    <textarea id="prueba_mensaje_resultante" name="prueba_mensaje_resultante" rows="20" cols="50"></textarea>
+                </div>
+            </div>
+            <input type="file" name="archivo_prueba" onchange="mostrarContenidoArchivoPrueba(event)">
+            <button type="submit">Cargar Prueba</button>
+        </form>
+    </div>
+
     <script>
         function mostrarContenidoArchivo(event) {
             const archivo = event.target.files[0];
@@ -56,9 +73,43 @@
             lector.readAsText(archivo);
         }
 
+        function mostrarContenidoArchivoPrueba(event) {
+            const archivo = event.target.files[0];
+            const lector = new FileReader();
+            lector.onload = function(e) {
+                document.getElementById('prueba_mensaje').value = e.target.result;
+            };
+            lector.readAsText(archivo);
+        }
+
+        function cargarArchivoPrueba() {
+            const formData = new FormData();
+            formData.append('archivo_prueba', document.getElementById('prueba_mensaje').value);
+
+            fetch('/prueba_mensaje/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log(data); // Imprimir la respuesta en la consola
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    document.getElementById('prueba_mensaje_resultante').value = data.archivo_resultante_prueba;
+                    alert(data.message);
+                }
+            });
+        }
+
         function limpiarTextareas() {
             document.getElementById('archivo').value = '';
             document.getElementById('archivo_resultante').value = '';
+            document.getElementById('prueba_mensaje').value = '';
+            document.getElementById('prueba_mensaje_resultante').value = '';
         }
 
         function limpiarDatos() {
@@ -94,6 +145,30 @@
                     alert(data.error);
                 } else {
                     document.getElementById('archivo_resultante').value = data.archivo_resultante;
+                    alert(data.message);
+                }
+            });
+        });
+
+        document.getElementById('prueba-mensaje-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const formData = new FormData(this);
+            formData.append('archivo_prueba', document.getElementById('prueba_mensaje').value); // Añadir el contenido del textarea
+
+            fetch('/prueba_mensaje/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log(data); // Imprimir la respuesta en la consola
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    document.getElementById('prueba_mensaje_resultante').value = data.archivo_resultante_prueba;
                     alert(data.message);
                 }
             });

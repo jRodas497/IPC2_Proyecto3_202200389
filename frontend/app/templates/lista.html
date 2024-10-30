@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lista de Empresas y Servicios</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <link rel="stylesheet" type="text/css" href="static/index.css">
 </head>
 <body>
@@ -26,75 +27,7 @@
         </nav>
     </header>
 
-    <h1>Lista de Empresas y Servicios</h1>
-    <table id="empresas-table">
-        <thead>
-            <tr>
-                <th>Empresa</th>
-                <th>Servicio</th>
-                <th>Alias</th>
-            </tr>
-        </thead>
-        <tbody>
-            <!-- Los datos se llenarán aquí mediante JavaScript -->
-        </tbody>
-    </table>
-    
-    <h1>Resumen de Mensajes</h1>
-    <p>Total de Mensajes: <span id="total-mensajes"></span></p>
-    <p>Positivos: <span id="positivos"></span></p>
-    <p>Negativos: <span id="negativos"></span></p>
-    <p>Neutros: <span id="neutros"></span></p>
-    <ul id="mensajes-list">
-        <!-- Los datos se llenarán aquí mediante JavaScript -->
-    </ul>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            fetch('/lista')
-                .then(response => response.json())
-                .then(data => {
-                    const empresasTableBody = document.querySelector('#empresas-table tbody');
-                    const mensajesList = document.getElementById('mensajes-list');
-                    const totalMensajes = document.getElementById('total-mensajes');
-                    const positivos = document.getElementById('positivos');
-                    const negativos = document.getElementById('negativos');
-                    const neutros = document.getElementById('neutros');
-
-                    data.empresas.forEach(empresa => {
-                        empresa.servicios.forEach((servicio, index) => {
-                            const row = document.createElement('tr');
-                            if (index === 0) {
-                                const empresaCell = document.createElement('td');
-                                empresaCell.rowSpan = empresa.servicios.length;
-                                empresaCell.textContent = empresa.nombre;
-                                row.appendChild(empresaCell);
-                            }
-                            const servicioCell = document.createElement('td');
-                            servicioCell.textContent = servicio.nombre;
-                            row.appendChild(servicioCell);
-
-                            const aliasCell = document.createElement('td');
-                            aliasCell.textContent = servicio.aliases.join(', ');
-                            row.appendChild(aliasCell);
-
-                            empresasTableBody.appendChild(row);
-                        });
-                    });
-
-                    totalMensajes.textContent = data.total_mensajes;
-                    positivos.textContent = data.positivos;
-                    negativos.textContent = data.negativos;
-                    neutros.textContent = data.neutros;
-
-                    data.mensajes.forEach(mensaje => {
-                        const listItem = document.createElement('li');
-                        listItem.textContent = `${mensaje.fecha} - ${mensaje.usuario}: ${mensaje.contenido} (${mensaje.clasificacion})`;
-                        mensajesList.appendChild(listItem);
-                    });
-                });
-        });
-    </script>
-
+    <h1>Datos Formateados</h1>
+    <pre>{{ datos_formateados }}</pre>    
 </body>
 </html>
