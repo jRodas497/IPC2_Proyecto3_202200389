@@ -1,20 +1,16 @@
 #----------------- IMPORTACIONES -------------------
 from flask import Flask, flash, request, redirect, send_file, url_for, render_template, session, jsonify
-import plotly.graph_objs as go
-import plotly.io as pio
+import matplotlib.pyplot as plt
 from tkinter import filedialog
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from xml.dom.minidom import Document
-from django.shortcuts import render, redirect
 import os
 import string
 import re
 import unicodedata
 from reportlab.pdfgen import canvas
-import io
 from reportlab.lib.pagesizes import letter
-import base64
 from io import BytesIO
 #---------------- GESTOR DE DATOS ------------------  
 
@@ -658,42 +654,29 @@ class GestorDatos:
             f.write(doc.toprettyxml(indent="  "))
         print(f"Archivo XML guardado exitosamente en {archivo_salida}")
 
-    def filtrar_mensajes(self, fecha, empresa):
-        actual = self.mensajes.cabeza
-        encontrado = False
-        contenido = ''
+    def filtrar_mensajes(self, fecha_input, empresa):
         total_mensajes = 0
         total_positivos = 0
         total_negativos = 0
         total_neutros = 0
-        
-        fecha_dt = datetime.strptime(fecha, '%d/%m/%Y')
-    
-        while actual:
-            mensaje = actual.valor
-            print(mensaje.fecha)
-        
-            mensaje_fecha_dt = datetime.strptime(mensaje.fecha, '%d/%m/%Y') if isinstance(mensaje.fecha, str) else mensaje.fecha
-            if mensaje_fecha_dt == fecha_dt and empresa.lower() in mensaje.empresa.lower():
-                encontrado = True
-                total_mensajes += 1
-                if mensaje.clasificacion == "positivo":
-                    total_positivos += 1
-                elif mensaje.clasificacion == "negativo":
-                    total_negativos += 1
-                else:
-                    total_neutros += 1
-                    
-                contenido += f"Lugar: {mensaje.lugar}\n"
-                contenido += f"Fecha: {mensaje.fecha} | Hora: {mensaje.hora} | Usuario: {mensaje.usuario} \n"
-                contenido += f"Red Social: {mensaje.red_social}\n"
-                contenido += f"Contenido: {mensaje.contenido}\n"
-            actual = actual.siguiente
-            
-        if not encontrado:
-            print(f"No se encontraron mensajes para la fecha {fecha} y la empresa {empresa}.")
-            
-        return contenido, total_mensajes, total_positivos, total_negativos, total_neutros
+        fecha_input_dt = datetime.strptime(fecha_input, '%d/%m/%Y')
+
+        for fecha_obj in self.mensajes_por_fecha.iterar():
+            fecha_dt = datetime.strptime(fecha_obj.fecha, '%d/%m/%Y')
+            if fecha_input_dt == fecha_dt:
+                for mensaje in fecha_obj.mensajes.iterar():
+                    if mensaje.clasificacion == "positivo":
+                        total_positivos += 1
+                    elif mensaje.clasificacion == "negativo":
+                        total_negativos += 1
+                    else:
+                        total_neutros += 1
+                    total_mensajes += 1
+        print(f"Total de mensajes: {total_mensajes}")
+        print(f"Total de mensajes positivos: {total_positivos}")
+        print(f"Total de mensajes negativos: {total_negativos}")
+        print(f"Total de mensajes neutros: {total_neutros}")
+        return total_mensajes, total_positivos, total_negativos, total_neutros
         
     def mostrar_mensajes_por_rango(self, fecha_inicio, fecha_fin):
         mensajes = ''
@@ -712,6 +695,7 @@ class GestorDatos:
                     mensajes += f"  Contenido: {mensaje.contenido}\n"
                     mensajes += f"  Palabras Positivas: {mensaje.positivas}\n"
                     mensajes += f"  Clasificación: {mensaje.clasificacion}\n"
+        print(mensajes)
         return mensajes
 
     def formatear_datos(self):
@@ -1084,36 +1068,33 @@ def resumen_clasificacion_por_fecha():
     if not fecha:
         return jsonify({"message": "No se ha proporcionado la fecha", "error": True})
     
+    total_mensajes, total_positivos, total_negativos, total_neutros = gestor.filtrar_mensajes(fecha, empresa)
+    
+    labels = ['Positivos', 'Negativos', 'Neutros']
+    sizes = [total_positivos, total_negativos, total_neutros]
+    colors = ['#ff9999','#66b3ff','#99ff99']
+    explode = (0.1, 0, 0)
+
+    fig1, ax1 = plt.subplots()
+    ax1.pie(sizes, explode=explode, labels=labels, colors=colors, autopct='%1.1f%%',
+            shadow=True, startangle=90)
+    ax1.axis('equal') 
+
     directorio_actual = os.path.dirname(os.path.abspath(__file__))
     ruta_uploads = os.path.join(directorio_actual, 'uploads')
         
     if not os.path.exists(ruta_uploads):
         os.makedirs(ruta_uploads)
         
-    image_path = os.path.join(ruta_uploads, "grafica.png")
-    
-    resumen, total_mensajes, total_positivos, total_negativos, total_neutros = gestor.filtrar_mensajes(fecha, empresa)
-    
-    categorias = ['Total Mensajes', 'Positivos', 'Negativos', 'Neutros']
-    valores = [total_mensajes, total_positivos, total_negativos, total_neutros]
+    ruta_grafica = os.path.join(ruta_uploads, 'grafica_pie.png')
+    plt.savefig(ruta_grafica)
+    plt.close(fig1)
 
-    data_grafica = go.Bar(y=valores, x=categorias)
-    
-    layout = go.Layout(
-        title=f"Resumen de Clasificación por Fecha: {fecha}",
-        xaxis={"title": "Clasificación"},
-        yaxis={"title": "Cantidad"}
-    )
 
-    fig = go.Figure(data=[data_grafica], layout=layout)
-    img_bytes = pio.to_image(fig, format='png')
-    
-    with open(image_path, "wb") as f:
-        f.write(img_bytes)
-                    
-    print(f"Imagen guardada exitosamente en {image_path}")
-    
-    return jsonify({"message": "Resumen generado con éxito", "image_path": image_path, "error": False})
+    return jsonify({
+        "message": "Resumen generado con éxito",
+        "error": False
+    })
 
 if __name__ == '__main__':
     app.run(debug=True, port = 8000)

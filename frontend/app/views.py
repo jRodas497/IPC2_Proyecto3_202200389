@@ -1,8 +1,11 @@
+import os
 from django.shortcuts import render
 from django.http import JsonResponse, HttpResponse
 from io import BytesIO
 import requests
 import xmltodict
+import plotly.graph_objs as go
+import plotly.offline as pyo
 
 contenido_archivo = ""
 
@@ -114,7 +117,7 @@ def mostrar_mensajes_por_rango(request):
             return HttpResponse(response.content, content_type='application/pdf')
         else:
             return JsonResponse({"message": "Error al generar el PDF", "error": True})
-     
+
 def resumen_clasificacion_por_fecha(request):
     if request.method == 'POST':
         fecha = request.POST.get('fecha')
@@ -128,6 +131,6 @@ def resumen_clasificacion_por_fecha(request):
             data = response.json()
             if data.get("error"):
                 return JsonResponse({"message": data["message"], "error": True})
-            return JsonResponse({"message": data["message"], "image_path": data["image_path"], "error": False})
+            return JsonResponse({"message": data["message"], "error": False})
         else:
             return JsonResponse({"message": "Error al generar el resumen", "error": True})
